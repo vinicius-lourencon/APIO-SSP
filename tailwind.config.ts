@@ -47,6 +47,9 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        "sisapa-green": "hsl(var(--sisapa-green))",
+        "sisapa-action": "hsl(var(--sisapa-green-action))",
+        "text-gray": "#5A5858",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -57,6 +60,10 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+      },
+      fontFamily: {
+        ubuntu: ["Ubuntu", "system-ui", "sans-serif"],
+        kumbh: ["Kumbh Sans", "system-ui", "sans-serif"],
       },
       borderRadius: {
         lg: "var(--radius)",
