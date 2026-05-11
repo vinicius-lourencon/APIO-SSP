@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { Link } from "react-router-dom";
 
 type Tab = "meus-projetos" | "novo-projeto";
 
@@ -107,14 +108,12 @@ export default function Index() {
         {/* ── Tab bar ── */}
         <div className="mt-8 rounded border border-[#CCC] bg-[rgba(204,204,204,0.80)] px-4 sm:px-6 py-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 min-h-[67px]">
           <div className="flex items-center">
-            <button
-              onClick={() => setActiveTab("meus-projetos")}
-              className={`font-ubuntu text-[20px] text-[#5A5858] px-4 py-4 sm:py-0 transition-opacity ${
-                activeTab === "meus-projetos" ? "font-medium opacity-100" : "opacity-60"
-              }`}
+            <Link
+              to="/meus-projetos"
+              className="font-ubuntu text-[20px] text-[#5A5858]/60 px-4 py-4 sm:py-0 opacity-60 hover:opacity-100 transition-opacity"
             >
               Meus Projetos
-            </button>
+            </Link>
             <button
               onClick={() => setActiveTab("novo-projeto")}
               className={`font-ubuntu text-[20px] text-[#5A5858] px-4 py-4 sm:py-0 transition-opacity ${
@@ -396,12 +395,12 @@ export default function Index() {
               >
                 Salvar Rascunho
               </button>
-              <button
-                type="submit"
-                className="bg-[#008000] rounded h-[43px] min-w-[230px] font-ubuntu text-[20px] text-white hover:bg-green-800 transition-colors px-6"
+              <Link
+                to="/informacoes-gerais"
+                className="flex items-center justify-center bg-[#008000] rounded h-[43px] min-w-[230px] font-ubuntu text-[20px] text-white hover:bg-green-800 transition-colors px-6"
               >
-                Submeter proposta
-              </button>
+                Próximo: Informações Gerais
+              </Link>
             </div>
           </div>
         )}
