@@ -24,4 +24,12 @@ dist-ssr
 *.sw?
 
 .config/
-!.env
+.env
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Uploaded files
+uploads/

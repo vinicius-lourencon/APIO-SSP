@@ -23,6 +23,12 @@ export default defineConfig(({ mode }) => ({
       "@shared": path.resolve(__dirname, "./shared"),
     },
   },
+  optimizeDeps: {
+    exclude: ["better-sqlite3"],
+  },
+  ssr: {
+    external: ["better-sqlite3", "jsonwebtoken", "bcryptjs", "multer", "helmet", "express-rate-limit"],
+  },
 }));
 
 function expressPlugin(): Plugin {
