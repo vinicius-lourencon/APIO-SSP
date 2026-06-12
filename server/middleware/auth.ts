@@ -2,6 +2,9 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
+  throw new Error("JWT_SECRET não definido. Configure a variável de ambiente antes de iniciar em produção.");
+}
 const JWT_SECRET = process.env.JWT_SECRET || "sisapa-dev-secret-change-in-production";
 const JWT_EXPIRES_IN = "8h";
 

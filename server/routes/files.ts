@@ -135,8 +135,8 @@ router.get(
 
     // Authorization: student owner or assigned professor
     if (
-      user.role === "aluno" && attachment.student_id !== user.userId ||
-      user.role === "professor" && attachment.professor_id !== user.userId
+      (user.role === "aluno" && attachment.student_id !== user.userId) ||
+      (user.role === "professor" && attachment.professor_id !== user.userId)
     ) {
       res.status(403).json({ error: "Sem permissão para baixar este arquivo." });
       return;
