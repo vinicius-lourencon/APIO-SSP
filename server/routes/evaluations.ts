@@ -59,6 +59,14 @@ router.post(
       return;
     }
 
+    const existingEval = db
+      .prepare("SELECT id FROM evaluations WHERE project_id = ? AND professor_id = ?")
+      .get(data.project_id, user.userId);
+    if (existingEval) {
+      res.status(409).json({ error: "Você já registrou uma avaliação para este projeto." });
+      return;
+    }
+
     const newStatus =
       data.decision === "aprovado"
         ? "aprovado"

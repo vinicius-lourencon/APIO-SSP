@@ -150,16 +150,16 @@ router.post("/", requireAuth, requireRole("aluno"), (req: Request, res: Response
     )
     .run({
       title: sanitizeString(data.title ?? "Novo Projeto"),
-      description: data.description ?? "",
-      objectives: data.objectives ?? "",
-      impact: data.impact ?? "",
-      public_target: data.public_target ?? "",
-      schedule: data.schedule ?? "",
-      resources: data.resources ?? "",
-      area: data.area ?? "",
-      keywords: JSON.stringify(data.keywords ?? []),
-      proposal_type: data.proposal_type ?? "",
-      duration: data.duration ?? "",
+      description: sanitizeString(data.description ?? ""),
+      objectives: sanitizeString(data.objectives ?? ""),
+      impact: sanitizeString(data.impact ?? ""),
+      public_target: sanitizeString(data.public_target ?? ""),
+      schedule: sanitizeString(data.schedule ?? ""),
+      resources: sanitizeString(data.resources ?? ""),
+      area: sanitizeString(data.area ?? ""),
+      keywords: JSON.stringify((data.keywords ?? []).map((k) => sanitizeString(k))),
+      proposal_type: sanitizeString(data.proposal_type ?? ""),
+      duration: sanitizeString(data.duration ?? ""),
       student_id: user.userId,
     });
 
@@ -217,16 +217,16 @@ router.put("/:id", requireAuth, requireRole("aluno"), (req: Request, res: Respon
   ).run({
     id: Number(id),
     title: data.title ? sanitizeString(data.title) : null,
-    description: data.description ?? null,
-    objectives: data.objectives ?? null,
-    impact: data.impact ?? null,
-    public_target: data.public_target ?? null,
-    schedule: data.schedule ?? null,
-    resources: data.resources ?? null,
-    area: data.area ?? null,
-    keywords: data.keywords ? JSON.stringify(data.keywords) : null,
-    proposal_type: data.proposal_type ?? null,
-    duration: data.duration ?? null,
+    description: data.description != null ? sanitizeString(data.description) : null,
+    objectives: data.objectives != null ? sanitizeString(data.objectives) : null,
+    impact: data.impact != null ? sanitizeString(data.impact) : null,
+    public_target: data.public_target != null ? sanitizeString(data.public_target) : null,
+    schedule: data.schedule != null ? sanitizeString(data.schedule) : null,
+    resources: data.resources != null ? sanitizeString(data.resources) : null,
+    area: data.area != null ? sanitizeString(data.area) : null,
+    keywords: data.keywords ? JSON.stringify(data.keywords.map((k) => sanitizeString(k))) : null,
+    proposal_type: data.proposal_type != null ? sanitizeString(data.proposal_type) : null,
+    duration: data.duration != null ? sanitizeString(data.duration) : null,
   });
 
   const updated = db.prepare("SELECT * FROM projects WHERE id = ?").get(id) as any;
