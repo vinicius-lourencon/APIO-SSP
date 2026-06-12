@@ -1,34 +1,9 @@
 import { Router, Request, Response } from "express";
 import { getDb } from "../db/database.js";
 import { requireAuth, requireRole, projectSchema, sanitizeString } from "../middleware/auth.js";
+import { addHistory, addNotification } from "../lib/helpers.js";
 
 const router = Router();
-
-// Helper: add history entry
-function addHistory(
-  projectId: number,
-  userId: number | null,
-  type: string,
-  description: string
-): void {
-  const db = getDb();
-  db.prepare(
-    "INSERT INTO history (project_id, user_id, type, description) VALUES (?, ?, ?, ?)"
-  ).run(projectId, userId, type, description);
-}
-
-// Helper: add notification
-function addNotification(
-  userId: number,
-  projectId: number,
-  message: string,
-  type: string
-): void {
-  const db = getDb();
-  db.prepare(
-    "INSERT INTO notifications (user_id, project_id, message, type) VALUES (?, ?, ?, ?)"
-  ).run(userId, projectId, message, type);
-}
 
 // GET /api/projetos — list projects filtered by user role
 router.get("/", requireAuth, (req: Request, res: Response): void => {
