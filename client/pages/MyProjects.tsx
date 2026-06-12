@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/layout/Header";
 import { getProjects, deleteProject, submitProject } from "@/lib/api";
@@ -42,8 +43,9 @@ export default function MyProjects() {
     try {
       await deleteProject(id);
       setProjects((prev) => prev.filter((p) => p.id !== id));
+      toast.success("Rascunho excluído com sucesso.");
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Erro ao excluir.");
+      toast.error(err instanceof ApiError ? err.message : "Erro ao excluir.");
     } finally {
       setActionLoading(null);
     }
@@ -54,9 +56,10 @@ export default function MyProjects() {
     setActionLoading(id);
     try {
       await submitProject(id);
+      toast.success("Projeto enviado para avaliação!");
       fetchProjects();
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Erro ao enviar projeto.");
+      toast.error(err instanceof ApiError ? err.message : "Erro ao enviar projeto.");
     } finally {
       setActionLoading(null);
     }

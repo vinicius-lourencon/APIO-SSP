@@ -45,8 +45,18 @@ export default function Header() {
         setNotifOpen(false);
       }
     }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setProfileOpen(false);
+        setNotifOpen(false);
+      }
+    }
     document.addEventListener("click", onClick);
-    return () => document.removeEventListener("click", onClick);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("click", onClick);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, []);
 
   const handleLogout = () => {

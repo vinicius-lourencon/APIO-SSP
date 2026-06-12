@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
 import { getProject, deleteAttachment, submitProject, getDownloadUrl } from "@/lib/api";
@@ -48,8 +49,9 @@ export default function ProjectDetail() {
           ? { ...prev, attachments: prev.attachments?.filter((a) => a.id !== attachmentId) }
           : prev
       );
+      toast.success("Arquivo removido.");
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Erro ao remover arquivo.");
+      toast.error(err instanceof ApiError ? err.message : "Erro ao remover arquivo.");
     } finally {
       setDeletingAttachment(null);
     }
@@ -61,9 +63,10 @@ export default function ProjectDetail() {
     setSubmitting(true);
     try {
       await submitProject(projectId);
+      toast.success("Projeto enviado para avaliação!");
       navigate("/meus-projetos");
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Erro ao enviar projeto.");
+      toast.error(err instanceof ApiError ? err.message : "Erro ao enviar projeto.");
     } finally {
       setSubmitting(false);
     }

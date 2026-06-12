@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
 import { getProjects, assignProject, getEvaluationStats } from "@/lib/api";
@@ -51,9 +52,10 @@ export default function Avaliador() {
     setAssignLoading(projectId);
     try {
       await assignProject(projectId);
+      toast.success("Projeto assumido. Boa avaliação!");
       fetchData();
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Erro ao assumir projeto.");
+      toast.error(err instanceof ApiError ? err.message : "Erro ao assumir projeto.");
     } finally {
       setAssignLoading(null);
     }

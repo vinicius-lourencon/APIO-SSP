@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 import Header from "@/components/layout/Header";
 import {
   getNotifications,
@@ -82,8 +83,9 @@ export default function NotificacoesPage() {
       if (removed && !removed.read) {
         setUnreadCount((prev) => Math.max(0, prev - 1));
       }
+      toast.success("Notificação excluída.");
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Erro ao excluir.");
+      toast.error(err instanceof ApiError ? err.message : "Erro ao excluir.");
     } finally {
       setDeletingId(null);
     }
