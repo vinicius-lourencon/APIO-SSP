@@ -6,13 +6,11 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   {
     // shadcn/ui generated code (components/ui and its use-toast hook) is vendored, not maintained by hand
-    // .venv/graphify-out/tools belong to the Graphify tooling (Python env and generated graph), not to the app
+    // .venv: local Python virtualenv, if present (not part of the app)
     ignores: [
       "dist",
       "node_modules",
       ".venv",
-      "graphify-out",
-      "tools",
       "client/components/ui/**",
       "client/hooks/use-toast.ts",
     ],

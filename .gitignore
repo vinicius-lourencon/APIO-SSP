@@ -34,16 +34,3 @@ dist-ssr
 
 # Uploaded files
 uploads/
-
-# Python environment used by Graphify (recreate with: python -m venv .venv && .venv\Scripts\pip install graphifyy)
-.venv/
-
-# Graphify: caches, automatic backups and machine-specific paths (the graph itself is versioned)
-graphify-out/cache/
-graphify-out/20*/
-graphify-out/.graphify_python
-graphify-out/.graphify_root
-graphify-out/**/*.tmp
-
-# Claude Code local settings (hooks point to absolute paths on this machine)
-.claude/

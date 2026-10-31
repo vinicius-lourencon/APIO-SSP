@@ -10,7 +10,7 @@ export default defineConfig({
     },
   },
   test: {
-    // Graphify tooling lives next to the app (Python venv, generated graph): never collect tests there
-    exclude: [...configDefaults.exclude, ".venv/**", "graphify-out/**", "tools/**"],
+    // Local Python virtualenv, if present, is not part of the app
+    exclude: [...configDefaults.exclude, ".venv/**"],
   },
 });

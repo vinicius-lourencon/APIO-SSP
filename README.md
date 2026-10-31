@@ -166,17 +166,10 @@ APIO-SSP/
 │   ├── lib/helpers.ts         # Histórico e notificações
 │   └── api.spec.ts            # Testes de integração
 ├── shared/api.ts              # Tipos e regras compartilhadas entre front e back
-├── docs/
-│   ├── SISAPA-ARQUITETURA.md  # Endpoints, tabelas, regras e fluxos
-│   └── AUDITORIA.md           # Auditoria técnica e plano de correção
-├── tools/graphify/            # Scripts para regenerar o grafo de conhecimento
-├── graphify-out/              # Grafo de conhecimento do código (graph.html, wiki, relatório)
+├── scripts/configure-email.mjs # Configuração guiada do e-mail (pnpm email:config)
 ├── iniciar-sisapa.bat         # Atalho de inicialização (Windows)
-├── CLAUDE.md / AGENTS.md      # Guias para assistentes de IA que trabalham no código
 └── .env.example               # Modelo de configuração
 ```
-
-Detalhes de cada endpoint, tabela e regra de negócio: **[`docs/SISAPA-ARQUITETURA.md`](docs/SISAPA-ARQUITETURA.md)**.
 
 ---
 

@@ -7,8 +7,8 @@ export default defineConfig(() => ({
   server: {
     host: "::",
     port: 8080,
-    // Graphify tooling (Python venv, generated graph) lives in the repo root: don't watch it
-    watch: { ignored: ["**/.venv/**", "**/graphify-out/**", "**/tools/**"] },
+    // Local Python virtualenv, if present: thousands of files that are not part of the app
+    watch: { ignored: ["**/.venv/**"] },
     fs: {
       allow: ["./client", "./shared", "index.html"],
       deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "server/**"],
