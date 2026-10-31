@@ -1,5 +1,7 @@
 @echo off
 setlocal
+rem UTF-8 so the setup messages (written by Node) show accents correctly
+chcp 65001 >nul
 title SISAPA - localhost:8080
 cd /d "%~dp0"
 
@@ -23,11 +25,6 @@ if not errorlevel 1 (
   exit /b 0
 )
 
-if not exist ".env" (
-  echo Criando .env a partir de .env.example...
-  copy ".env.example" ".env" >nul
-)
-
 rem Instala as dependencias so na primeira vez (ou se a instalacao anterior falhou)
 if not exist "node_modules\.modules.yaml" (
   echo Instalando dependencias - pode levar alguns minutos na primeira vez...
@@ -42,6 +39,9 @@ if not exist "node_modules\.modules.yaml" (
     exit /b 1
   )
 )
+
+rem Cria o .env (se faltar) e pede a conta de e-mail so na primeira vez neste computador
+node scripts\configure-email.mjs --if-missing
 
 echo.
 echo Abrindo o navegador em alguns segundos...

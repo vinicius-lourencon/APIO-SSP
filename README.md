@@ -73,7 +73,7 @@ Aplicação full-stack em TypeScript: SPA React no front, API REST Express no ba
 - **pnpm 10** (`corepack enable`, ou use `npx pnpm@10.14.0` no lugar de `pnpm`)
 
 ### Windows: com dois cliques
-Execute **`iniciar-sisapa.bat`**. Ele cria o `.env` (se não existir), instala as dependências na primeira vez, sobe o servidor e abre `http://localhost:8080`. Se o SISAPA já estiver rodando, só abre o navegador.
+Execute **`iniciar-sisapa.bat`**. Na primeira vez ele instala as dependências e pede a configuração do e-mail (veja abaixo); depois sobe o servidor e abre `http://localhost:8080`. Se o SISAPA já estiver rodando, só abre o navegador.
 
 ### Manualmente
 ```bash
@@ -113,7 +113,7 @@ Copie `.env.example` para `.env`. **Nunca envie o `.env` para o repositório** (
 | `SEED` | `1` cria os usuários de demonstração também no `pnpm start` |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE` | Servidor de e-mail (já vêm prontos para o Gmail: `smtp.gmail.com`, 465, `true`) |
 | `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | Conta remetente e senha de app |
-| `EMAIL_TRANSPORT` | `log` imprime os e-mails no terminal em vez de enviar |
+| `EMAIL_TRANSPORT` | Só para testes: `log` imprime os e-mails no terminal em vez de enviar (a tela avisa) |
 | `EMAIL_REDIRECT_TO` | Durante testes, desvia **todos** os e-mails para este endereço |
 
 ### Envio de e-mail com Gmail
@@ -121,7 +121,9 @@ Copie `.env.example` para `.env`. **Nunca envie o `.env` para o repositório** (
 2. Gere uma **senha de app** em https://myaccount.google.com/apppasswords.
 3. Preencha `SMTP_USER` (o endereço) e `SMTP_PASS` (a senha de app) no `.env`.
 
-Sem credenciais, o `pnpm dev` apenas imprime o e-mail no terminal e o `pnpm start` responde "envio de e-mail não configurado". Os alunos de demonstração usam e-mails de um domínio real: ao testar, defina `EMAIL_REDIRECT_TO` com o seu endereço.
+**Jeito mais fácil:** na primeira vez em cada computador, o `iniciar-sisapa.bat` pergunta o e-mail e a senha de app, testa o login no Gmail e grava no `.env` local. Para refazer depois: `pnpm email:config`.
+
+Sem essa configuração o SISAPA **não envia** e avisa na tela que o e-mail não está configurado (nada é registrado como enviado). Os alunos de demonstração usam e-mails de um domínio real: ao testar, defina `EMAIL_REDIRECT_TO` com o seu endereço.
 
 ---
 
@@ -134,6 +136,7 @@ Sem credenciais, o `pnpm dev` apenas imprime o e-mail no terminal e o `pnpm star
 | `pnpm start` | Servidor de produção local |
 | `pnpm test` | Testes (Vitest): integração da API com banco temporário + serviço de e-mail |
 | `pnpm lint` | Análise estática com ESLint |
+| `pnpm email:config` | Configura (ou troca) a conta de e-mail no `.env` local |
 | `pnpm typecheck` | Verificação de tipos TypeScript |
 | `pnpm format.fix` | Formatação com Prettier |
 

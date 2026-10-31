@@ -13,6 +13,7 @@
     "start": "node dist/server/node-build.mjs",
     "test": "vitest --run",
     "lint": "eslint .",
+    "email:config": "node scripts/configure-email.mjs",
     "format.fix": "prettier --write .",
     "typecheck": "tsc"
   },

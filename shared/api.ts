@@ -144,6 +144,8 @@ export interface MeetingRequestBody {
 
 export interface MeetingRequestResponse {
   message: string;
+  /** "smtp" = really sent; "log" = test mode, only printed on the server terminal; "test" = automated tests */
+  delivery: "smtp" | "log" | "test";
   sentTo: string;
   /** ISO time when the next request for this project is allowed */
   nextAllowedAt: string;

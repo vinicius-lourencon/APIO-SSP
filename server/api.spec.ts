@@ -317,6 +317,24 @@ describe("solicitação de reunião por e-mail", () => {
     expect(project.meeting_cooldown_until).toBeNull();
   });
 
+  it("sem e-mail configurado no servidor: 503, nada registrado e o limite não é consumido", async () => {
+    const historyBefore = (await api("GET", "/projetos/3", { token: professor })).data.history.length;
+    setEmailSenderForTests(null); // real service, with SMTP_* emptied in beforeAll
+    try {
+      const res = await meeting(3, professor, { message: "Olá" });
+      expect(res.status).toBe(503);
+      expect(res.data.error).toMatch(/não está configurado/);
+    } finally {
+      setEmailSenderForTests(async (email) => {
+        sent.push(email);
+      });
+    }
+    const project = (await api("GET", "/projetos/3", { token: professor })).data;
+    expect(project.history.length).toBe(historyBefore);
+    expect(project.meeting_cooldown_until).toBeNull();
+    expect(sent).toHaveLength(0);
+  });
+
   it("envia o e-mail ao aluno com reply-to do professor, sanitiza a mensagem e registra tudo", async () => {
     const res = await meeting(3, professor, {
       message: "<script>alert(1)</script>\nPodemos conversar na terça?",
@@ -325,6 +343,7 @@ describe("solicitação de reunião por e-mail", () => {
     });
     expect(res.status).toBe(201);
     expect(res.data.sentTo).toBe(STUDENT);
+    expect(res.data.delivery).toBe("test");
     expect(res.data.scheduleUpdated).toBe(true);
 
     expect(sent).toHaveLength(1);

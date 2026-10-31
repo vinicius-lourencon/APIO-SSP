@@ -3,7 +3,12 @@ import type Database from "better-sqlite3";
 import { getDb } from "../db/database.js";
 import { requireAuth, requireRole, meetingRequestSchema, sanitizeString } from "../middleware/auth.js";
 import { addHistory, addNotification } from "../lib/helpers.js";
-import { sendEmail, EmailNotConfiguredError, EmailDeliveryError } from "../services/email/index.js";
+import {
+  sendEmail,
+  EmailNotConfiguredError,
+  EmailDeliveryError,
+  type EmailDelivery,
+} from "../services/email/index.js";
 import { meetingRequestEmail } from "../services/email/templates/meeting-request.js";
 import {
   MEETING_REQUEST_COOLDOWN_MINUTES,
@@ -148,11 +153,16 @@ router.post(
       });
 
       // Send first: history and notification are only recorded for e-mails that actually left
+      let delivery: EmailDelivery;
       try {
-        await sendEmail({ to: project.student_email, replyTo: professor.email, ...email });
+        ({ delivery } = await sendEmail({ to: project.student_email, replyTo: professor.email, ...email }));
       } catch (err) {
         if (err instanceof EmailNotConfiguredError) {
-          res.status(503).json({ error: "O envio de e-mail não está configurado no servidor. Avise o administrador do sistema." });
+          res.status(503).json({
+            error:
+              "O envio de e-mail não está configurado neste computador, então nada foi enviado nem registrado. " +
+              "Configure a conta de e-mail ao iniciar pelo iniciar-sisapa.bat (ou com 'pnpm email:config') e tente de novo.",
+          });
           return;
         }
         console.error("[e-mail] falha ao enviar solicitação de reunião:", err instanceof EmailDeliveryError ? err.message : err);
@@ -196,7 +206,11 @@ router.post(
       })();
 
       const body: MeetingRequestResponse = {
-        message: `Solicitação de reunião enviada para ${project.student_email}.`,
+        message:
+          delivery === "log"
+            ? "Modo de teste (EMAIL_TRANSPORT=log): o e-mail NÃO foi enviado, apenas impresso no terminal do servidor."
+            : `Solicitação de reunião enviada para ${project.student_email}.`,
+        delivery,
         sentTo: project.student_email,
         nextAllowedAt: new Date(Date.now() + COOLDOWN_SECONDS * 1000).toISOString(),
         scheduleUpdated: Boolean(scheduleLine),

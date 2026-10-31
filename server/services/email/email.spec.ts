@@ -30,7 +30,14 @@ afterEach(() => {
 });
 
 describe("sendEmail", () => {
-  it("em desenvolvimento sem credenciais, só registra no terminal", async () => {
+  it("sem credenciais, recusa também em desenvolvimento (nunca finge que enviou)", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    await expect(sendEmail(message)).rejects.toBeInstanceOf(EmailNotConfiguredError);
+    expect(log).not.toHaveBeenCalled();
+  });
+
+  it("EMAIL_TRANSPORT=log só imprime no terminal e informa delivery 'log'", async () => {
+    process.env.EMAIL_TRANSPORT = "log";
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     await expect(sendEmail(message)).resolves.toEqual({ delivery: "log" });
     expect(log.mock.calls[0][0]).toContain("Para: aluno@estudante.ifms.edu.br");

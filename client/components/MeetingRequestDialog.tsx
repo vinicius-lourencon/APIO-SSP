@@ -58,11 +58,16 @@ export default function MeetingRequestDialog({ open, onOpenChange, projectId, st
         proposed_at: proposedAt || undefined,
         location: location.trim(),
       });
-      toast.success(
-        result.scheduleUpdated
-          ? `${result.message} A reunião também foi adicionada ao cronograma.`
-          : result.message,
-      );
+      if (result.delivery === "log") {
+        // Test mode on the server: nothing was really e-mailed, so never show it as a success
+        toast.warning(result.message, { duration: 10_000 });
+      } else {
+        toast.success(
+          result.scheduleUpdated
+            ? `${result.message} A reunião também foi adicionada ao cronograma.`
+            : result.message,
+        );
+      }
       onSent(result);
       onOpenChange(false);
     } catch (err) {

@@ -14,12 +14,12 @@ export interface OutgoingEmail extends EmailMessage {
   from: string;
 }
 
-/** smtp = really sent; log = printed to the terminal (dev without credentials); test = captured by tests */
+/** smtp = really sent; log = only printed to the terminal (EMAIL_TRANSPORT=log); test = captured by tests */
 export type EmailDelivery = "smtp" | "log" | "test";
 
 export class EmailNotConfiguredError extends Error {
   constructor() {
-    super("Envio de e-mail não configurado no servidor (defina SMTP_USER e SMTP_PASS).");
+    super("Envio de e-mail não configurado no servidor (defina SMTP_USER e SMTP_PASS no .env).");
     this.name = "EmailNotConfiguredError";
   }
 }
@@ -95,8 +95,9 @@ export async function sendEmail(message: EmailMessage): Promise<{ delivery: Emai
       return { delivery: "test" };
     }
 
-    const forceLog = process.env.EMAIL_TRANSPORT === "log";
-    if (forceLog || (!smtpConfigured() && process.env.NODE_ENV !== "production")) {
+    // Terminal-only mode must be switched on on purpose: an unconfigured server never
+    // pretends to have sent anything (it fails with EmailNotConfiguredError below)
+    if (process.env.EMAIL_TRANSPORT === "log") {
       console.log(
         [
           "────────── [e-mail NÃO enviado: modo log] ──────────",
