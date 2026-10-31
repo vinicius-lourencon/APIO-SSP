@@ -14,7 +14,7 @@ export type EvaluationDecision = "aprovado" | "reprovado" | "ajustes_solicitados
 
 export type NotificationType = "info" | "success" | "warning" | "error";
 
-export type HistoryType = "criacao" | "submissao" | "avaliacao" | "ajuste" | "notificacao";
+export type HistoryType = "criacao" | "submissao" | "avaliacao" | "ajuste" | "notificacao" | "reuniao";
 
 export interface User {
   id: number;
@@ -51,6 +51,8 @@ export interface Project {
   professor_name?: string;
   attachment_count?: number;
   latest_feedback?: string | null;
+  /** Only for the assigned professor: ISO time when a new meeting request is allowed again (null = now) */
+  meeting_cooldown_until?: string | null;
   created_at: string;
   updated_at: string;
   attachments?: Attachment[];
@@ -61,7 +63,6 @@ export interface Project {
 export interface Attachment {
   id: number;
   project_id: number;
-  filename: string;
   original_name: string;
   size: number;
   mime_type: string;
@@ -106,6 +107,84 @@ export interface AuthResponse {
   user: User;
 }
 
+export interface RegisterRequest {
+  name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  cpf?: string;
+  matricula?: string;
+  curso?: string;
+  semestre?: number;
+  siape?: string;
+  departamento?: string;
+}
+
+export interface CreateEvaluationRequest {
+  project_id: number;
+  opinion: string;
+  feedback: string;
+  decision: EvaluationDecision;
+  justification?: string;
+}
+
+// ── Meeting request (professor → student, by e-mail) ──
+
+/** Minimum interval between two requests from the same professor for the same project */
+export const MEETING_REQUEST_COOLDOWN_MINUTES = 10;
+
+export interface MeetingRequestBody {
+  /** Optional free text: suggested dates, place, agenda */
+  message?: string;
+  /** Optional suggested date/time, "YYYY-MM-DDTHH:mm" (local time). When set, it is added to the project's schedule */
+  proposed_at?: string;
+  /** Optional place, used together with proposed_at */
+  location?: string;
+}
+
+export interface MeetingRequestResponse {
+  message: string;
+  sentTo: string;
+  /** ISO time when the next request for this project is allowed */
+  nextAllowedAt: string;
+  /** True when proposed_at was given and a line was appended to the schedule (cronograma) */
+  scheduleUpdated: boolean;
+}
+
+// Some names already carry the title ("Prof. Ana Costa", "Profa. Maria"): strip it before formatting
+const PROFESSOR_TITLE = /^prof(?:essor|essora|a)?\.?\s+/i;
+
+/** "Ana Costa" or "Prof. Ana Costa" → "Prof. Ana Costa" (never "Prof. Prof.") */
+export function professorLabel(name: string): string {
+  return `Prof. ${name.trim().replace(PROFESSOR_TITLE, "")}`;
+}
+
+/** First name without academic title: "Prof. Ana Costa" → "Ana" */
+export function firstName(name: string): string {
+  return name.trim().replace(PROFESSOR_TITLE, "").split(/\s+/)[0] ?? "";
+}
+
+export function isValidEmail(email: string | null | undefined): boolean {
+  return !!email && /^[^\s@<>()",;:]+@[^\s@<>()",;:]+\.[^\s@<>()",;:]{2,}$/.test(email.trim());
+}
+
+export interface EvaluationStats {
+  total: number;
+  pending: number;
+  approved: number;
+  adjustments: number;
+}
+
+// Institutional e-mail domain required for each role at sign-up (validated on both sides)
+export const ROLE_EMAIL_DOMAINS: Record<UserRole, string> = {
+  professor: "@ifms.edu.br",
+  aluno: "@estudante.ifms.edu.br",
+};
+
+export function emailMatchesRole(email: string, role: UserRole): boolean {
+  return email.trim().toLowerCase().endsWith(ROLE_EMAIL_DOMAINS[role]);
+}
+
 export interface ApiError {
   error: string;
 }
@@ -147,8 +226,3 @@ export const KNOWLEDGE_AREAS = [
   "Artes",
   "Outro",
 ];
-
-// Demo response kept for compatibility
-export interface DemoResponse {
-  message: string;
-}

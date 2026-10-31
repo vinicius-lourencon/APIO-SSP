@@ -1,19 +1,33 @@
-import type { AuthResponse, Project, Evaluation, Notification, User } from "@shared/api";
+import type {
+  AuthResponse,
+  CreateEvaluationRequest,
+  Evaluation,
+  EvaluationStats,
+  MeetingRequestBody,
+  MeetingRequestResponse,
+  Notification,
+  Project,
+  RegisterRequest,
+  User,
+} from "@shared/api";
 
 const BASE_URL = "/api";
 
+export const TOKEN_KEY = "sisapa_token";
+
+// Fired when an authenticated request gets 401 (expired/invalid token); AuthContext logs out
+export const SESSION_EXPIRED_EVENT = "sisapa:session-expired";
+
 function getToken(): string | null {
-  return localStorage.getItem("sisapa_token");
+  return localStorage.getItem(TOKEN_KEY);
 }
 
-async function request<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
+// Every API call goes through here: adds the JWT, turns errors into ApiError
+// and ends the session when an authenticated request is rejected with 401.
+async function send(endpoint: string, options: RequestInit = {}): Promise<Response> {
   const token = getToken();
 
   const headers: HeadersInit = {
-    "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...((options.headers as Record<string, string>) ?? {}),
   };
@@ -31,9 +45,27 @@ async function request<T>(
     } catch {
       // ignore parse error
     }
+    if (res.status === 401 && token) {
+      localStorage.removeItem(TOKEN_KEY);
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+    }
     throw new ApiError(message, res.status);
   }
 
+  return res;
+}
+
+async function request<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const res = await send(endpoint, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...((options.headers as Record<string, string>) ?? {}),
+    },
+  });
   return res.json() as Promise<T>;
 }
 
@@ -56,18 +88,7 @@ export async function login(email: string, password: string): Promise<AuthRespon
   });
 }
 
-export async function register(data: {
-  name: string;
-  email: string;
-  password: string;
-  role: "aluno" | "professor";
-  cpf?: string;
-  matricula?: string;
-  curso?: string;
-  semestre?: number;
-  siape?: string;
-  departamento?: string;
-}): Promise<AuthResponse> {
+export async function register(data: RegisterRequest): Promise<AuthResponse> {
   return request<AuthResponse>("/auth/register", {
     method: "POST",
     body: JSON.stringify(data),
@@ -127,28 +148,24 @@ export async function deleteProject(id: number): Promise<{ message: string }> {
   });
 }
 
+export async function requestMeeting(id: number, data: MeetingRequestBody): Promise<MeetingRequestResponse> {
+  return request<MeetingRequestResponse>(`/projetos/${id}/reuniao`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 // ── Evaluations ──
 
-export async function createEvaluation(data: {
-  project_id: number;
-  opinion: string;
-  feedback: string;
-  decision: "aprovado" | "reprovado" | "ajustes_solicitados";
-  justification?: string;
-}): Promise<Evaluation> {
+export async function createEvaluation(data: CreateEvaluationRequest): Promise<Evaluation> {
   return request<Evaluation>("/avaliacoes", {
     method: "POST",
     body: JSON.stringify(data),
   });
 }
 
-export async function getEvaluationStats(): Promise<{
-  total: number;
-  pending: number;
-  approved: number;
-  adjustments: number;
-}> {
-  return request("/avaliacoes/stats");
+export async function getEvaluationStats(): Promise<EvaluationStats> {
+  return request<EvaluationStats>("/avaliacoes/stats");
 }
 
 // ── Files ──
@@ -157,25 +174,28 @@ export async function uploadFiles(
   projectId: number,
   files: FileList | File[]
 ): Promise<{ files: Array<{ id: number; original_name: string; size: number; mime_type: string }> }> {
-  const token = getToken();
   const formData = new FormData();
   Array.from(files).forEach((f) => formData.append("files", f));
 
-  const res = await fetch(`${BASE_URL}/files/upload/${projectId}`, {
+  // No Content-Type header: the browser sets the multipart boundary
+  const res = await send(`/files/upload/${projectId}`, {
     method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
   });
-
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new ApiError(data.error || "Falha no upload.", res.status);
-  }
   return res.json();
 }
 
-export function getDownloadUrl(attachmentId: number): string {
-  return `${BASE_URL}/files/${attachmentId}/download`;
+// Downloads with the Authorization header (a plain <a href> can't send it) and saves the file
+export async function downloadAttachment(attachmentId: number, filename: string): Promise<void> {
+  const res = await send(`/files/${attachmentId}/download`);
+  const url = URL.createObjectURL(await res.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export async function deleteAttachment(attachmentId: number): Promise<{ message: string }> {

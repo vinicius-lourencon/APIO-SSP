@@ -3,9 +3,9 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { getNotifications, markAllNotificationsRead } from "@/lib/api";
 import type { Notification } from "@shared/api";
+import { firstName } from "@shared/api";
 
-const LOGO_URL =
-  "https://api.builder.io/api/v1/image/assets/TEMP/ed1ee9a31b22bdde676872eef7ab1779ba3043b1?width=124";
+const LOGO_URL = "/logo-sisapa.png";
 
 const notifTypeBg: Record<string, string> = {
   success: "bg-green-50 border-l-4 border-green-500",
@@ -182,7 +182,7 @@ export default function Header() {
               className="flex items-center gap-2 hover:bg-gray-50 rounded px-2 py-1 transition-colors"
             >
               <div className="w-8 h-8 bg-[#10512D] text-white rounded-full flex items-center justify-center font-ubuntu font-bold text-sm">
-                {user?.name.charAt(0).toUpperCase()}
+                {firstName(user?.name ?? "").charAt(0).toUpperCase()}
               </div>
               <span className="hidden sm:block font-ubuntu font-medium text-sm text-[#5A5858] max-w-[120px] truncate">
                 {user?.name}

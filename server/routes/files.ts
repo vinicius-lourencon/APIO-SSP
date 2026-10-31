@@ -8,12 +8,16 @@ import { requireAuth, requireRole } from "../middleware/auth.js";
 
 const router = Router();
 
-const UPLOADS_DIR = path.resolve(process.cwd(), "uploads");
-if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+// SISAPA_UPLOADS_DIR lets tests use a throwaway folder
+const UPLOADS_DIR = path.resolve(process.env.SISAPA_UPLOADS_DIR || path.join(process.cwd(), "uploads"));
 
 // Multer configuration with security validations
 const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
+  destination: (_req, _file, cb) => {
+    // Created on first upload, not at import time (keeps builds/tests free of side effects)
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    cb(null, UPLOADS_DIR);
+  },
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     const unique = crypto.randomBytes(16).toString("hex");
@@ -28,6 +32,15 @@ const ALLOWED_TYPES = [
 ];
 const ALLOWED_EXTENSIONS = [".pdf", ".doc", ".docx"];
 const MAX_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB
+
+const EDITABLE_STATUSES = ["rascunho", "ajustes_solicitados"];
+
+// Deletes files multer already stored for a request that ended in error
+function removeUploaded(req: Request): void {
+  for (const file of (req.files as Express.Multer.File[] | undefined) ?? []) {
+    fs.rm(file.path, { force: true }, () => {});
+  }
+}
 
 const upload = multer({
   storage,
@@ -47,33 +60,35 @@ router.post(
   requireAuth,
   requireRole("aluno"),
   (req: Request, res: Response): void => {
+    const db = getDb();
+    const { projectId } = req.params;
+    const user = req.user!;
+
+    // Validate before multer writes anything to disk
+    const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(projectId) as any;
+    if (!project) {
+      res.status(404).json({ error: "Projeto não encontrado." });
+      return;
+    }
+    if (project.student_id !== user.userId) {
+      res.status(403).json({ error: "Sem permissão." });
+      return;
+    }
+    if (!EDITABLE_STATUSES.includes(project.status)) {
+      res.status(400).json({ error: "Não é possível anexar arquivos a projetos já submetidos." });
+      return;
+    }
+
     const uploader = upload.array("files", 2);
 
     uploader(req, res, (err) => {
-      if (err instanceof multer.MulterError) {
-        if (err.code === "LIMIT_FILE_SIZE") {
-          res.status(400).json({ error: "Arquivo muito grande. Máximo 25MB." });
-        } else {
-          res.status(400).json({ error: err.message });
-        }
-        return;
-      }
       if (err) {
-        res.status(400).json({ error: err.message });
-        return;
-      }
-
-      const db = getDb();
-      const { projectId } = req.params;
-      const user = req.user!;
-
-      const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(projectId) as any;
-      if (!project) {
-        res.status(404).json({ error: "Projeto não encontrado." });
-        return;
-      }
-      if (project.student_id !== user.userId) {
-        res.status(403).json({ error: "Sem permissão." });
+        removeUploaded(req);
+        const message =
+          err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE"
+            ? "Arquivo muito grande. Máximo 25MB."
+            : err.message;
+        res.status(400).json({ error: message });
         return;
       }
 
@@ -189,7 +204,7 @@ router.delete(
       res.status(403).json({ error: "Sem permissão." });
       return;
     }
-    if (!["rascunho", "ajustes_solicitados"].includes(attachment.status)) {
+    if (!EDITABLE_STATUSES.includes(attachment.status)) {
       res.status(400).json({ error: "Não é possível remover arquivos de projetos já submetidos." });
       return;
     }

@@ -4,40 +4,46 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
   ReactNode,
 } from "react";
-import type { User } from "@shared/api";
-import { getMe, login as apiLogin, register as apiRegister } from "@/lib/api";
+import { toast } from "sonner";
+import type { RegisterRequest, User } from "@shared/api";
+import {
+  getMe,
+  login as apiLogin,
+  register as apiRegister,
+  SESSION_EXPIRED_EVENT,
+  TOKEN_KEY,
+} from "@/lib/api";
 
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
+  register: (data: RegisterRequest) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
 }
 
-interface RegisterData {
-  name: string;
-  email: string;
-  password: string;
-  role: "aluno" | "professor";
-  cpf?: string;
-  matricula?: string;
-  curso?: string;
-  semestre?: number;
-  siape?: string;
-  departamento?: string;
-}
-
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-const TOKEN_KEY = "sisapa_token";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const userRef = useRef<User | null>(null);
+  userRef.current = user;
+
+  // Token expired or became invalid mid-session: drop the user so ProtectedRoute sends them to login
+  useEffect(() => {
+    function onSessionExpired() {
+      if (userRef.current) toast.error("Sua sessão expirou. Entre novamente.");
+      setUser(null);
+    }
+    window.addEventListener(SESSION_EXPIRED_EVENT, onSessionExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onSessionExpired);
+  }, []);
 
   // On mount, rehydrate user from stored token
   useEffect(() => {
@@ -60,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.user);
   }, []);
 
-  const register = useCallback(async (data: RegisterData) => {
+  const register = useCallback(async (data: RegisterRequest) => {
     const res = await apiRegister(data);
     localStorage.setItem(TOKEN_KEY, res.token);
     setUser(res.user);

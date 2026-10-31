@@ -38,6 +38,7 @@ export default defineConfig({
         "multer",
         "helmet",
         "express-rate-limit",
+        "nodemailer",
       ],
       output: {
         format: "es",

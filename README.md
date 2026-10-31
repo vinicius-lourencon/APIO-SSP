@@ -1,174 +1,196 @@
 # SISAPA — Sistema Integrado de Submissão e Avaliação de Projetos Acadêmicos
 
-> Plataforma web desenvolvida para o **IFMS** que digitaliza e centraliza todo o ciclo de vida de projetos acadêmicos — da criação pelo aluno até a decisão final do professor avaliador.
+> Plataforma web desenvolvida para o **IFMS** que digitaliza todo o ciclo de vida de projetos acadêmicos: da criação pelo aluno até a decisão final do professor avaliador, com notificações, histórico auditável e comunicação por e-mail.
 
 ---
 
-## O Problema que Resolve
+## O problema que resolve
 
-Instituições de ensino frequentemente gerenciam a submissão de projetos acadêmicos por e-mail, planilhas ou formulários desconexos. Isso cria gargalos: professores perdem projetos na caixa de entrada, alunos não sabem em que etapa seu projeto está, e não há histórico auditável das decisões tomadas.
+A submissão de projetos acadêmicos costuma ser feita por e-mail, planilhas ou formulários desconexos: professores perdem projetos na caixa de entrada, alunos não sabem em que etapa estão e não há histórico das decisões.
 
-O SISAPA resolve isso oferecendo um ambiente único onde alunos submetem, professores avaliam e ambos acompanham o andamento em tempo real — com notificações automáticas e histórico completo de cada projeto.
+O SISAPA reúne tudo em um só lugar: o aluno submete, o professor assume e avalia, os dois acompanham o andamento e cada passo fica registrado no histórico do projeto.
 
 ---
 
 ## Funcionalidades
 
-### Para o Aluno
-- Criar projetos com título, descrição, objetivos, impacto esperado, cronograma e recursos
-- Anexar documentos de suporte (PDF, DOC, DOCX)
-- Acompanhar o status do projeto em tempo real com barra de progresso
-- Receber notificações quando o avaliador tomar uma decisão
-- Responder a solicitações de ajuste e reenviar o projeto para nova avaliação
+### Aluno
+- Criar projetos em duas etapas (detalhes + informações gerais: objetivos, descrição, impacto, área, palavras-chave, cronograma e recursos)
+- Anexar até 2 documentos por envio (PDF, DOC, DOCX — máx. 25 MB)
+- Enviar para avaliação e acompanhar status e progresso
+- Receber notificações das decisões do avaliador
+- Corrigir o projeto quando houver **ajustes solicitados** e reenviá-lo ao mesmo avaliador
 
-### Para o Professor / Avaliador
-- Visualizar fila de projetos pendentes e assumir a avaliação
-- Emitir parecer com opinião técnica, feedback e decisão fundamentada
-- Aprovar, reprovar ou solicitar ajustes com justificativa obrigatória
-- Consultar estatísticas dos projetos avaliados
+### Professor / avaliador
+- Ver a fila de projetos submetidos e **assumir** a avaliação
+- Baixar os anexos dos projetos que avalia
+- Emitir parecer, feedback e decisão: **aprovado**, **reprovado** ou **ajustes solicitados** (justificativa obrigatória nos dois últimos)
+- Reavaliar o projeto depois que o aluno reenvia os ajustes
+- **Solicitar reunião por e-mail** ao aluno: o e-mail sai com resposta direta para o professor; se houver data sugerida, a reunião entra no cronograma do projeto
+- Painel com estatísticas (avaliados, pendentes, aprovados, ajustes)
 
 ### Geral
-- Autenticação separada por perfil (aluno / professor)
-- Central de notificações com histórico de atividades
-- Página de perfil com dados acadêmicos do usuário
-- Interface responsiva para desktop e dispositivos móveis
+- Cadastro com e-mail institucional: professores `@ifms.edu.br`, alunos `@estudante.ifms.edu.br`
+- Central de notificações e histórico completo de cada projeto
+- Confirmações de ações em janelas próprias do sistema
+- Sessão expirada leva de volta ao login automaticamente
+- Interface responsiva
 
 ---
 
-## Fluxo de um Projeto
+## Fluxo de um projeto
 
 ```
-[Aluno cria rascunho]
-        ↓
-[Aluno preenche detalhes e anexa documentos]
-        ↓
-[Aluno submete para avaliação]
-        ↓
-[Professor assume o projeto e inicia análise]
-        ↓
-        ├── Aprovado ✓
-        ├── Reprovado ✗
-        └── Ajustes Solicitados → Aluno corrige → Resubmete
+rascunho ──enviar──▶ submetido ──professor assume──▶ em análise ──avaliação──▶ aprovado (100%)
+                                                        ▲                   ├──▶ reprovado
+                                                        │                   └──▶ ajustes solicitados
+                                                        └──── aluno corrige e reenvia (mesmo avaliador) ◀──┘
 ```
 
-Cada etapa gera uma entrada no histórico do projeto e uma notificação para o usuário envolvido.
+Cada passo gera uma entrada no histórico do projeto e uma notificação para quem é afetado. A qualquer momento depois de assumir, o avaliador pode solicitar uma reunião por e-mail (limite de 1 solicitação a cada 10 minutos por projeto).
 
 ---
 
 ## Tecnologias
 
-O projeto é uma aplicação full-stack em TypeScript com frontend SPA e backend REST, compartilhando tipos entre as duas camadas.
+Aplicação full-stack em TypeScript: SPA React no front, API REST Express no back e tipos compartilhados entre os dois (`shared/api.ts`).
 
-### Frontend
-| Tecnologia | Papel |
+| Camada | Tecnologias |
 |---|---|
-| React 18 + TypeScript | Interface e tipagem estática |
-| Vite | Bundler e servidor de desenvolvimento |
-| Tailwind CSS + shadcn/ui | Estilização e componentes de UI |
-| React Router DOM v6 | Roteamento client-side |
-| TanStack React Query | Cache e gerenciamento de estado assíncrono |
-| React Hook Form + Zod | Formulários com validação em runtime |
-| Sonner | Notificações toast |
-| Framer Motion | Animações de interface |
-
-### Backend
-| Tecnologia | Papel |
-|---|---|
-| Node.js + Express 5 | Servidor HTTP e roteamento de API |
-| Better-SQLite3 | Banco de dados SQLite embutido (zero configuração) |
-| JWT + bcryptjs | Autenticação stateless e hash de senhas |
-| Helmet | Headers de segurança HTTP (CSP, HSTS etc.) |
-| express-rate-limit | Proteção contra força bruta |
-| Multer | Upload e validação de arquivos |
-| Zod | Validação e parsing de payloads no servidor |
+| Front-end | React 18, Vite 8, React Router 6, Tailwind CSS + shadcn/ui, Sonner (toasts) |
+| Back-end | Node.js + Express 5, Zod (validação), Helmet, express-rate-limit, Multer (upload) |
+| Banco de dados | SQLite via better-sqlite3 (arquivo `sisapa.db`, migrations versionadas) |
+| Autenticação | JWT (8 h) + bcryptjs |
+| E-mail | Nodemailer (SMTP — ex.: Gmail com senha de app) |
+| Qualidade | Vitest (testes de integração da API), ESLint, TypeScript |
 
 ---
 
-## Pré-requisitos
+## Como executar
 
-- **Node.js** >= 18
-- **pnpm** >= 10 — recomendado por ser o gerenciador configurado no projeto
+### Pré-requisitos
+- **Node.js 22.12 ou superior**
+- **pnpm 10** (`corepack enable`, ou use `npx pnpm@10.14.0` no lugar de `pnpm`)
 
----
+### Windows: com dois cliques
+Execute **`iniciar-sisapa.bat`**. Ele cria o `.env` (se não existir), instala as dependências na primeira vez, sobe o servidor e abre `http://localhost:8080`. Se o SISAPA já estiver rodando, só abre o navegador.
 
-## Instalação e Execução
-
+### Manualmente
 ```bash
-# Clone o repositório
 git clone https://github.com/vinicius-lourencon/APIO-SSP.git
 cd APIO-SSP
 
-# Instale as dependências
-pnpm install
-
-# Inicie o servidor de desenvolvimento (frontend + backend juntos)
-pnpm dev
+pnpm install              # também compila o módulo nativo do SQLite
+cp .env.example .env      # ajuste as variáveis (veja abaixo)
+pnpm dev                  # front + API em http://localhost:8080
 ```
 
-A aplicação estará disponível em `http://localhost:8080`.
+Versão de produção local: `pnpm build` e depois `pnpm start` (porta `PORT`, padrão 3000; exige `JWT_SECRET`).
 
-### Scripts disponíveis
+### Usuários de demonstração
+Com o banco vazio, o `pnpm dev` cria usuários e projetos de exemplo (senha **`senha123`**):
 
-| Comando | Descrição |
+| Perfil | E-mail |
 |---|---|
-| `pnpm dev` | Desenvolvimento com hot-reload |
-| `pnpm build` | Build de produção (client + server) |
-| `pnpm start` | Inicia o servidor em modo produção |
-| `pnpm test` | Testes com Vitest |
-| `pnpm typecheck` | Verificação de tipos TypeScript |
-| `pnpm format.fix` | Formatação com Prettier |
+| Aluno | `joao.silva@estudante.ifms.edu.br` |
+| Aluna | `maria.oliveira@estudante.ifms.edu.br` |
+| Professora | `ana.costa@ifms.edu.br` |
+| Professor | `carlos.lima@ifms.edu.br` |
+
+Os dados ficam em `sisapa.db` (e `sisapa.db-wal`/`-shm`) e os anexos em `uploads/`, na raiz do projeto, e **persistem** entre execuções. Para recomeçar do zero, apague `sisapa.db*`. Para backup, copie esses arquivos e a pasta `uploads/` com o servidor parado.
 
 ---
 
-## Estrutura do Projeto
+## Configuração (`.env`)
+
+Copie `.env.example` para `.env`. **Nunca envie o `.env` para o repositório** (ele já está no `.gitignore`).
+
+| Variável | Para que serve |
+|---|---|
+| `JWT_SECRET` | Segredo dos tokens de login. Obrigatório no `pnpm start`; no `pnpm dev` há um segredo de desenvolvimento |
+| `PORT` | Porta do `pnpm start` (padrão 3000) |
+| `CORS_ORIGINS` | Origens extras liberadas (mesma origem e `localhost` já são aceitos) |
+| `SEED` | `1` cria os usuários de demonstração também no `pnpm start` |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE` | Servidor de e-mail (já vêm prontos para o Gmail: `smtp.gmail.com`, 465, `true`) |
+| `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | Conta remetente e senha de app |
+| `EMAIL_TRANSPORT` | `log` imprime os e-mails no terminal em vez de enviar |
+| `EMAIL_REDIRECT_TO` | Durante testes, desvia **todos** os e-mails para este endereço |
+
+### Envio de e-mail com Gmail
+1. Use uma conta Gmail (de preferência só para o SISAPA) com **verificação em duas etapas**.
+2. Gere uma **senha de app** em https://myaccount.google.com/apppasswords.
+3. Preencha `SMTP_USER` (o endereço) e `SMTP_PASS` (a senha de app) no `.env`.
+
+Sem credenciais, o `pnpm dev` apenas imprime o e-mail no terminal e o `pnpm start` responde "envio de e-mail não configurado". Os alunos de demonstração usam e-mails de um domínio real: ao testar, defina `EMAIL_REDIRECT_TO` com o seu endereço.
+
+---
+
+## Scripts
+
+| Comando | Descrição |
+|---|---|
+| `pnpm dev` | Desenvolvimento com hot-reload (porta 8080) |
+| `pnpm build` | Build de produção (client + server) |
+| `pnpm start` | Servidor de produção local |
+| `pnpm test` | Testes (Vitest): integração da API com banco temporário + serviço de e-mail |
+| `pnpm lint` | Análise estática com ESLint |
+| `pnpm typecheck` | Verificação de tipos TypeScript |
+| `pnpm format.fix` | Formatação com Prettier |
+
+Antes de enviar alterações: `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` precisam passar.
+
+---
+
+## Estrutura do projeto
 
 ```
 APIO-SSP/
-├── client/                  # SPA React
+├── client/                    # SPA React
 │   ├── components/
-│   │   ├── layout/          # Header com navegação e notificações
-│   │   └── ui/              # Componentes base (shadcn/ui)
-│   ├── contexts/            # AuthContext (estado global do usuário)
-│   ├── lib/                 # Cliente HTTP tipado
-│   └── pages/               # Telas da aplicação
-│       ├── Login.tsx
-│       ├── MyProjects.tsx   # Área do aluno
-│       ├── Index.tsx        # Criação/edição de projeto (etapa 1)
-│       ├── GeneralInfo.tsx  # Criação/edição de projeto (etapa 2)
-│       ├── ProjectDetail.tsx
-│       ├── Avaliador.tsx    # Área do professor
-│       ├── AvaliacaoForm.tsx
-│       ├── NotificacoesPage.tsx
-│       └── Profile.tsx
-│
-├── server/                  # API REST Express
-│   ├── db/                  # Schema e inicialização do SQLite
-│   ├── lib/                 # Utilitários internos (helpers de history/notif.)
-│   ├── middleware/          # Auth JWT, validação Zod, sanitização
-│   └── routes/              # Controladores por recurso
-│
-├── shared/                  # Tipos e constantes usados por client e server
-│   └── api.ts               # Project, User, Evaluation, status labels...
-│
-└── index.html
+│   │   ├── layout/            # Header (navegação e notificações)
+│   │   ├── ui/                # Componentes base (shadcn/ui)
+│   │   ├── ConfirmDialog.tsx  # Janela de confirmação do sistema
+│   │   └── MeetingRequestDialog.tsx
+│   ├── contexts/              # AuthContext (sessão do usuário)
+│   ├── hooks/
+│   ├── lib/api.ts             # Cliente HTTP (todas as chamadas à API)
+│   └── pages/                 # Telas (login, área do aluno, área do avaliador, detalhe, notificações, perfil)
+├── server/                    # API REST Express (/api)
+│   ├── db/database.ts         # Schema, migrations e dados de demonstração
+│   ├── middleware/auth.ts     # JWT, perfis e validação (Zod)
+│   ├── routes/                # auth, projetos, avaliações, arquivos, notificações, reuniões
+│   ├── services/email/        # Envio de e-mail + templates
+│   ├── lib/helpers.ts         # Histórico e notificações
+│   └── api.spec.ts            # Testes de integração
+├── shared/api.ts              # Tipos e regras compartilhadas entre front e back
+├── docs/
+│   ├── SISAPA-ARQUITETURA.md  # Endpoints, tabelas, regras e fluxos
+│   └── AUDITORIA.md           # Auditoria técnica e plano de correção
+├── tools/graphify/            # Scripts para regenerar o grafo de conhecimento
+├── graphify-out/              # Grafo de conhecimento do código (graph.html, wiki, relatório)
+├── iniciar-sisapa.bat         # Atalho de inicialização (Windows)
+├── CLAUDE.md / AGENTS.md      # Guias para assistentes de IA que trabalham no código
+└── .env.example               # Modelo de configuração
 ```
+
+Detalhes de cada endpoint, tabela e regra de negócio: **[`docs/SISAPA-ARQUITETURA.md`](docs/SISAPA-ARQUITETURA.md)**.
 
 ---
 
 ## Segurança
 
-- Senhas armazenadas com **bcrypt** (hash + salt automático)
-- Tokens **JWT** com expiração de 8 horas
-- Rate limiting de 20 requisições / 15 min nas rotas de autenticação
-- Headers HTTP de segurança configurados via **Helmet**
-- CORS restrito às origens permitidas por ambiente
-- Todos os campos de texto sanitizados contra XSS antes de persistir
-- Validação de tipo de arquivo e tamanho máximo no upload (25 MB)
-- Prevenção de path traversal no download de arquivos
+- Senhas com **bcrypt**; sessões com **JWT** de 8 horas
+- Cadastro restrito por domínio institucional e por perfil
+- Rotas protegidas por autenticação e perfil, validadas no servidor (não só na interface)
+- Rate limit: 20 tentativas / 15 min em login e cadastro; 1 solicitação de reunião / 10 min por projeto
+- Headers de segurança com **Helmet** (CSP); CORS restrito à mesma origem e ao ambiente local
+- Texto gravado como digitado e escapado na exibição (React e templates de e-mail), sem HTML injetado
+- Upload validado (tipo, tamanho, dono e status do projeto) antes de gravar no disco; proteção contra path traversal no download
+- Configuração sensível só em variáveis de ambiente
 
 ---
 
-## Sobre o Projeto Acadêmico
+## Sobre o projeto acadêmico
 
 | | |
 |---|---|
@@ -177,8 +199,6 @@ APIO-SSP/
 | **Disciplina** | Aplicações Para Internet com Orientação a Objetos (APIO) |
 | **Período** | 4º Semestre |
 
----
-
 ## Desenvolvido por
 
 | Nome | GitHub |
@@ -186,7 +206,5 @@ APIO-SSP/
 | Nicolas Wolf | [@Flowzinnn](https://github.com/Flowzinnn) |
 | Vinicius Antonio Lourençon | [@vinicius-lourencon](https://github.com/vinicius-lourencon) |
 | Ryan Lopes Hadas | [@ryanhadas](https://github.com/ryanhadas) |
-
----
 
 *Projeto desenvolvido para fins acadêmicos — IFMS, 2025.*

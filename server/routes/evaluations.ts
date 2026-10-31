@@ -54,16 +54,10 @@ router.post(
       res.status(403).json({ error: "Você não é o avaliador deste projeto." });
       return;
     }
-    if (!["submetido", "em_analise"].includes(project.status)) {
+    // One evaluation per review round: a round is open only while the project is em_analise
+    // (resubmission after adjustments reopens it for the same evaluator)
+    if (project.status !== "em_analise") {
       res.status(400).json({ error: "Projeto não está disponível para avaliação." });
-      return;
-    }
-
-    const existingEval = db
-      .prepare("SELECT id FROM evaluations WHERE project_id = ? AND professor_id = ?")
-      .get(data.project_id, user.userId);
-    if (existingEval) {
-      res.status(409).json({ error: "Você já registrou uma avaliação para este projeto." });
       return;
     }
 
@@ -76,36 +70,11 @@ router.post(
 
     const progress = progressForDecision(data.decision);
 
-    const result = db
-      .prepare(
-        `INSERT INTO evaluations (project_id, professor_id, opinion, feedback, decision, justification)
-         VALUES (@project_id, @professor_id, @opinion, @feedback, @decision, @justification)`
-      )
-      .run({
-        project_id: data.project_id,
-        professor_id: user.userId,
-        opinion: sanitizeString(data.opinion ?? ""),
-        feedback: sanitizeString(data.feedback ?? ""),
-        decision: data.decision,
-        justification: sanitizeString(data.justification ?? ""),
-      });
-
-    db.prepare(
-      "UPDATE projects SET status = ?, progress = ?, updated_at = datetime('now') WHERE id = ?"
-    ).run(newStatus, progress, data.project_id);
-
     const decisionLabel: Record<string, string> = {
       aprovado: "aprovado",
       reprovado: "reprovado",
       ajustes_solicitados: "com ajustes solicitados",
     };
-
-    addHistory(
-      data.project_id,
-      user.userId,
-      "avaliacao",
-      `Projeto avaliado: ${decisionLabel[data.decision]}.`
-    );
 
     const notifTypeMap: Record<string, string> = {
       aprovado: "success",
@@ -119,16 +88,52 @@ router.post(
       ajustes_solicitados: `Ajustes foram solicitados no projeto '${project.title}'.`,
     };
 
-    addNotification(
-      project.student_id,
-      data.project_id,
-      notifMessageMap[data.decision],
-      notifTypeMap[data.decision]
-    );
+    // Status change + evaluation + history + notification are applied atomically;
+    // the conditional UPDATE also rejects a concurrent second evaluation of the same round
+    const evaluationId = db.transaction(() => {
+      const updated = db
+        .prepare(
+          `UPDATE projects SET status = ?, progress = ?, updated_at = datetime('now')
+           WHERE id = ? AND status = 'em_analise' AND professor_id = ?`
+        )
+        .run(newStatus, progress, data.project_id, user.userId);
+      if (updated.changes === 0) return null;
 
-    const evaluation = db
-      .prepare("SELECT * FROM evaluations WHERE id = ?")
-      .get(result.lastInsertRowid);
+      const result = db
+        .prepare(
+          `INSERT INTO evaluations (project_id, professor_id, opinion, feedback, decision, justification)
+           VALUES (@project_id, @professor_id, @opinion, @feedback, @decision, @justification)`
+        )
+        .run({
+          project_id: data.project_id,
+          professor_id: user.userId,
+          opinion: sanitizeString(data.opinion ?? ""),
+          feedback: sanitizeString(data.feedback),
+          decision: data.decision,
+          justification: sanitizeString(data.justification ?? ""),
+        });
+
+      addHistory(
+        data.project_id,
+        user.userId,
+        "avaliacao",
+        `Projeto avaliado: ${decisionLabel[data.decision]}.`
+      );
+      addNotification(
+        project.student_id,
+        data.project_id,
+        notifMessageMap[data.decision],
+        notifTypeMap[data.decision]
+      );
+      return result.lastInsertRowid;
+    })();
+
+    if (evaluationId === null) {
+      res.status(409).json({ error: "Este projeto já foi avaliado nesta rodada." });
+      return;
+    }
+
+    const evaluation = db.prepare("SELECT * FROM evaluations WHERE id = ?").get(evaluationId);
 
     res.status(201).json(evaluation);
   }
@@ -181,16 +186,20 @@ router.get(
     const db = getDb();
     const user = req.user!;
 
+    // Projects this professor has evaluated at least once
     const total = (
       db
-        .prepare("SELECT COUNT(*) as c FROM projects WHERE professor_id = ?")
+        .prepare("SELECT COUNT(DISTINCT project_id) as c FROM evaluations WHERE professor_id = ?")
         .get(user.userId) as any
     ).c;
 
+    // Waiting for action: unassigned submissions plus own projects under review
     const pending = (
       db
         .prepare(
-          "SELECT COUNT(*) as c FROM projects WHERE (professor_id = ? OR (professor_id IS NULL AND status = 'submetido'))"
+          `SELECT COUNT(*) as c FROM projects
+           WHERE (professor_id IS NULL AND status = 'submetido')
+              OR (professor_id = ? AND status = 'em_analise')`
         )
         .get(user.userId) as any
     ).c;

@@ -1,7 +1,9 @@
 import { Router, Request, Response } from "express";
+import fs from "fs";
 import { getDb } from "../db/database.js";
 import { requireAuth, requireRole, projectSchema, sanitizeString } from "../middleware/auth.js";
 import { addHistory, addNotification } from "../lib/helpers.js";
+import { meetingCooldownUntil } from "./meetings.js";
 
 const router = Router();
 
@@ -84,22 +86,20 @@ router.get("/:id", requireAuth, (req: Request, res: Response): void => {
     return;
   }
 
-  // Access control: student can only see own projects, professor sees assigned
+  // Access control: student can only see own projects; professor sees assigned ones
+  // and submitted projects still waiting for an evaluator
   if (user.role === "aluno" && project.student_id !== user.userId) {
     res.status(403).json({ error: "Sem permissão para acessar este projeto." });
     return;
   }
-  if (
-    user.role === "professor" &&
-    project.professor_id !== user.userId &&
-    project.status !== "submetido"
-  ) {
+  const awaitingEvaluator = project.status === "submetido" && project.professor_id === null;
+  if (user.role === "professor" && project.professor_id !== user.userId && !awaitingEvaluator) {
     res.status(403).json({ error: "Sem permissão para acessar este projeto." });
     return;
   }
 
   const attachments = db
-    .prepare("SELECT id, original_name, size, mime_type, uploaded_at FROM attachments WHERE project_id = ?")
+    .prepare("SELECT id, project_id, original_name, size, mime_type, uploaded_at FROM attachments WHERE project_id = ?")
     .all(id);
 
   const evaluations = db
@@ -128,6 +128,11 @@ router.get("/:id", requireAuth, (req: Request, res: Response): void => {
     attachments,
     evaluations,
     history,
+    // Lets the assigned professor's screen disable "Solicitar reunião" during the cooldown
+    meeting_cooldown_until:
+      user.role === "professor" && project.professor_id === user.userId
+        ? meetingCooldownUntil(db, project.id, user.userId)
+        : null,
   });
 });
 
@@ -229,6 +234,10 @@ router.put("/:id", requireAuth, requireRole("aluno"), (req: Request, res: Respon
     duration: data.duration != null ? sanitizeString(data.duration) : null,
   });
 
+  if (project.status === "ajustes_solicitados") {
+    addHistory(Number(id), user.userId, "ajuste", "Projeto ajustado pelo aluno.");
+  }
+
   const updated = db.prepare("SELECT * FROM projects WHERE id = ?").get(id) as any;
   res.json({ ...updated, keywords: tryParseJson(updated.keywords, []) });
 });
@@ -262,30 +271,43 @@ router.post(
       return;
     }
 
-    db.prepare(
-      "UPDATE projects SET status = 'submetido', progress = 10, updated_at = datetime('now') WHERE id = ?"
-    ).run(id);
+    // Resubmission after adjustments goes straight back to the same evaluator
+    const isResubmission = project.status === "ajustes_solicitados" && project.professor_id;
 
-    addHistory(Number(id), user.userId, "submissao", "Projeto submetido para avaliação.");
+    db.transaction(() => {
+      if (isResubmission) {
+        db.prepare(
+          "UPDATE projects SET status = 'em_analise', progress = 30, updated_at = datetime('now') WHERE id = ?"
+        ).run(id);
+        addHistory(Number(id), user.userId, "submissao", "Projeto reenviado para avaliação após ajustes.");
+        addNotification(
+          project.professor_id,
+          Number(id),
+          `Projeto '${project.title}' foi reenviado após ajustes e aguarda sua nova avaliação.`,
+          "info"
+        );
+        return;
+      }
 
-    // Notify all professors if no professor assigned
-    if (!project.professor_id) {
+      db.prepare(
+        "UPDATE projects SET status = 'submetido', progress = 10, updated_at = datetime('now') WHERE id = ?"
+      ).run(id);
+      addHistory(Number(id), user.userId, "submissao", "Projeto submetido para avaliação.");
+
+      // No evaluator yet: notify all professors
       const professors = db
         .prepare("SELECT id FROM users WHERE role = 'professor' AND authorized = 1")
         .all() as any[];
       professors.forEach((p) => {
         addNotification(p.id, Number(id), `Novo projeto '${project.title}' aguarda avaliação.`, "info");
       });
-    } else {
-      addNotification(
-        project.professor_id,
-        Number(id),
-        `Projeto '${project.title}' foi reenviado após ajustes.`,
-        "info"
-      );
-    }
+    })();
 
-    res.json({ message: "Projeto submetido com sucesso." });
+    res.json({
+      message: isResubmission
+        ? "Projeto reenviado ao avaliador com sucesso."
+        : "Projeto submetido com sucesso.",
+    });
   }
 );
 
@@ -314,23 +336,29 @@ router.post(
       return;
     }
 
-    db.prepare(
-      "UPDATE projects SET professor_id = ?, status = 'em_analise', progress = 30, updated_at = datetime('now') WHERE id = ?"
-    ).run(user.userId, id);
+    // Conditional UPDATE guards against two professors assuming the same project at once
+    const assigned = db.transaction(() => {
+      const result = db
+        .prepare(
+          `UPDATE projects SET professor_id = ?, status = 'em_analise', progress = 30, updated_at = datetime('now')
+           WHERE id = ? AND status = 'submetido' AND (professor_id IS NULL OR professor_id = ?)`
+        )
+        .run(user.userId, id, user.userId);
+      if (result.changes === 0) return false;
 
-    addHistory(Number(id), user.userId, "avaliacao", `Professor ${user.name} iniciou a avaliação.`);
-
-    const student = db
-      .prepare("SELECT id FROM users WHERE id = (SELECT student_id FROM projects WHERE id = ?)")
-      .get(id) as any;
-
-    if (student) {
+      addHistory(Number(id), user.userId, "avaliacao", `Professor ${user.name} iniciou a avaliação.`);
       addNotification(
-        student.id,
+        project.student_id,
         Number(id),
         `Seu projeto está sendo avaliado pelo ${user.name}.`,
         "info"
       );
+      return true;
+    })();
+
+    if (!assigned) {
+      res.status(409).json({ error: "Projeto já atribuído a outro professor." });
+      return;
     }
 
     res.json({ message: "Projeto atribuído com sucesso." });
@@ -362,7 +390,17 @@ router.delete(
       return;
     }
 
+    const files = db
+      .prepare("SELECT filepath FROM attachments WHERE project_id = ?")
+      .all(id) as { filepath: string }[];
+
     db.prepare("DELETE FROM projects WHERE id = ?").run(id);
+
+    // Attachment rows go away via ON DELETE CASCADE; remove the files themselves too
+    for (const { filepath } of files) {
+      fs.rm(filepath, { force: true }, () => {});
+    }
+
     res.json({ message: "Projeto excluído." });
   }
 );

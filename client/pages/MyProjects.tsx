@@ -1,21 +1,23 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/layout/Header";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { getProjects, deleteProject, submitProject } from "@/lib/api";
 import { ApiError } from "@/lib/api";
 import type { Project } from "@shared/api";
-import { STATUS_LABELS, STATUS_COLORS } from "@shared/api";
+import { STATUS_LABELS, STATUS_COLORS, professorLabel } from "@shared/api";
 
 export default function MyProjects() {
-  const { user } = useAuth();
+  const confirm = useConfirm();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const debouncedSearch = useDebouncedValue(search.trim());
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
@@ -23,7 +25,7 @@ export default function MyProjects() {
     try {
       const data = await getProjects({
         status: statusFilter || undefined,
-        search: search || undefined,
+        search: debouncedSearch || undefined,
       });
       setProjects(data);
     } catch (err) {
@@ -31,18 +33,29 @@ export default function MyProjects() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, search]);
+  }, [statusFilter, debouncedSearch]);
 
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Deseja excluir este rascunho permanentemente?")) return;
-    setActionLoading(id);
+  const handleDelete = async (project: Project) => {
+    const confirmed = await confirm({
+      title: "Excluir rascunho",
+      description: (
+        <>
+          O rascunho <strong>{project.title}</strong> e os arquivos anexados serão excluídos permanentemente. Esta ação
+          não pode ser desfeita.
+        </>
+      ),
+      confirmLabel: "Excluir rascunho",
+      variant: "danger",
+    });
+    if (!confirmed) return;
+    setActionLoading(project.id);
     try {
-      await deleteProject(id);
-      setProjects((prev) => prev.filter((p) => p.id !== id));
+      await deleteProject(project.id);
+      setProjects((prev) => prev.filter((p) => p.id !== project.id));
       toast.success("Rascunho excluído com sucesso.");
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Erro ao excluir.");
@@ -51,12 +64,28 @@ export default function MyProjects() {
     }
   };
 
-  const handleSubmit = async (id: number) => {
-    if (!confirm("Deseja enviar este projeto para avaliação? Após envio não poderá ser editado.")) return;
-    setActionLoading(id);
+  const handleSubmit = async (project: Project) => {
+    const isResubmission = project.status === "ajustes_solicitados";
+    const confirmed = await confirm({
+      title: isResubmission ? "Reenviar para avaliação" : "Enviar para avaliação",
+      description: isResubmission ? (
+        <>
+          <strong>{project.title}</strong> volta para o mesmo avaliador, que será notificado. O projeto não poderá ser
+          editado durante a nova avaliação.
+        </>
+      ) : (
+        <>
+          <strong>{project.title}</strong> será enviado aos professores para avaliação. O projeto não poderá ser editado
+          enquanto estiver em avaliação.
+        </>
+      ),
+      confirmLabel: isResubmission ? "Reenviar" : "Enviar para avaliação",
+    });
+    if (!confirmed) return;
+    setActionLoading(project.id);
     try {
-      await submitProject(id);
-      toast.success("Projeto enviado para avaliação!");
+      await submitProject(project.id);
+      toast.success(isResubmission ? "Projeto reenviado ao avaliador!" : "Projeto enviado para avaliação!");
       fetchProjects();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Erro ao enviar projeto.");
@@ -195,7 +224,7 @@ export default function MyProjects() {
                 const statusLabel = STATUS_LABELS[project.status];
                 const canEdit =
                   project.status === "rascunho" || project.status === "ajustes_solicitados";
-                const canSubmit = project.status === "rascunho";
+                const canSubmit = canEdit;
                 const canDelete = project.status === "rascunho";
                 const isActing = actionLoading === project.id;
 
@@ -211,7 +240,7 @@ export default function MyProjects() {
                             <span>{project.proposal_type}</span>
                           )}
                           {project.professor_name && (
-                            <span>• Prof. {project.professor_name}</span>
+                            <span>• {professorLabel(project.professor_name)}</span>
                           )}
                           <span>
                             •{" "}
@@ -266,16 +295,20 @@ export default function MyProjects() {
                       )}
                       {canSubmit && (
                         <button
-                          onClick={() => handleSubmit(project.id)}
+                          onClick={() => handleSubmit(project)}
                           disabled={isActing}
                           className="px-3 py-1.5 bg-[#008000] text-white rounded text-sm font-ubuntu hover:bg-green-800 disabled:opacity-60"
                         >
-                          {isActing ? "Enviando..." : "Enviar para Avaliação"}
+                          {isActing
+                            ? "Enviando..."
+                            : project.status === "ajustes_solicitados"
+                              ? "Reenviar para Avaliação"
+                              : "Enviar para Avaliação"}
                         </button>
                       )}
                       {canDelete && (
                         <button
-                          onClick={() => handleDelete(project.id)}
+                          onClick={() => handleDelete(project)}
                           disabled={isActing}
                           className="px-3 py-1.5 border border-red-200 rounded text-sm font-ubuntu text-red-600 hover:bg-red-50 disabled:opacity-60"
                         >

@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/layout/Header";
 import { createProject, updateProject, uploadFiles, getProject } from "@/lib/api";
 import { ApiError } from "@/lib/api";
@@ -21,7 +20,6 @@ function validateFile(file: File): string | null {
 }
 
 export default function NovoProjeto() {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get("id") ? Number(searchParams.get("id")) : null;
@@ -34,6 +32,9 @@ export default function NovoProjeto() {
   const [fileErrors, setFileErrors] = useState<string[]>([]);
   const [drag, setDrag] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Keeps the id of a project created in this screen, so retrying after a failed upload
+  // updates it instead of creating a duplicate draft
+  const createdIdRef = useRef<number | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [loadingProject, setLoadingProject] = useState(!!editId);
@@ -94,13 +95,14 @@ export default function NovoProjeto() {
     setLoading(true);
 
     try {
-      let projectId = editId;
+      let projectId = editId ?? createdIdRef.current;
 
+      // Empty strings (not undefined) so clearing a field actually clears it on update
       const payload = {
         title: title.trim(),
-        proposal_type: proposalType || undefined,
-        public_target: targetAudience.trim() || undefined,
-        duration: duration.trim() || undefined,
+        proposal_type: proposalType,
+        public_target: targetAudience.trim(),
+        duration: duration.trim(),
       };
 
       if (projectId) {
@@ -108,10 +110,12 @@ export default function NovoProjeto() {
       } else {
         const created = await createProject(payload);
         projectId = created.id;
+        createdIdRef.current = created.id;
       }
 
       if (files.length > 0) {
         await uploadFiles(projectId!, files);
+        setFiles([]);
       }
 
       if (andNavigateTo === "informacoes-gerais") {

@@ -1,12 +1,24 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
+import { ROLE_EMAIL_DOMAINS, emailMatchesRole } from "../../shared/api.js";
 
-if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
-  throw new Error("JWT_SECRET não definido. Configure a variável de ambiente antes de iniciar em produção.");
-}
-const JWT_SECRET = process.env.JWT_SECRET || "sisapa-dev-secret-change-in-production";
+const JWT_DEV_SECRET = "sisapa-dev-secret-change-in-production";
 const JWT_EXPIRES_IN = "8h";
+
+// Read lazily (not at import time) so `vite build` and tests can load this module
+// without a secret; createServer() calls assertAuthConfig() to fail fast at startup.
+function getJwtSecret(): string {
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("JWT_SECRET não definido. Configure a variável de ambiente (veja .env.example) antes de iniciar em produção.");
+  }
+  return JWT_DEV_SECRET;
+}
+
+export function assertAuthConfig(): void {
+  getJwtSecret();
+}
 
 export interface JwtPayload {
   userId: number;
@@ -16,6 +28,8 @@ export interface JwtPayload {
 }
 
 declare global {
+  // Module augmentation of Express' global namespace is the documented way to type req.user
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       user?: JwtPayload;
@@ -24,7 +38,7 @@ declare global {
 }
 
 export function signToken(payload: JwtPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: JWT_EXPIRES_IN });
 }
 
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
@@ -36,7 +50,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
   const token = authHeader.slice(7);
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    const payload = jwt.verify(token, getJwtSecret()) as JwtPayload;
     req.user = payload;
     next();
   } catch {
@@ -58,23 +72,12 @@ export function requireRole(role: "aluno" | "professor") {
   };
 }
 
-export function requireProfessorAuthorized(req: Request, res: Response, next: NextFunction): void {
-  if (!req.user || req.user.role !== "professor") {
-    res.status(403).json({ error: "Acesso restrito a professores autorizados." });
-    return;
-  }
-  next();
+// Normalizes free text before persisting. Text is stored as typed: React escapes it on
+// output, and escaping here showed entities like &quot; on screen. Never render it as HTML.
+export function sanitizeString(input: string): string {
+  return input.trim();
 }
 
-// Input sanitization: strip HTML tags to prevent XSS
-export function sanitizeString(input: string): string {
-  return input
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#x27;")
-    .trim();
-}
 
 // Zod schemas for request validation
 export const loginSchema = z.object({
@@ -93,7 +96,16 @@ export const registerSchema = z.object({
   semestre: z.coerce.number().int().min(1).max(10).optional(),
   siape: z.string().max(20).optional(),
   departamento: z.string().max(150).optional(),
-});
+}).refine(
+  (data) => emailMatchesRole(data.email, data.role),
+  (data) => ({
+    message:
+      data.role === "professor"
+        ? `Professores devem usar um e-mail ${ROLE_EMAIL_DOMAINS.professor}.`
+        : `Alunos devem usar um e-mail ${ROLE_EMAIL_DOMAINS.aluno}.`,
+    path: ["email"],
+  }),
+);
 
 export const projectSchema = z.object({
   title: z.string().min(3, "Título deve ter no mínimo 3 caracteres.").max(300),
@@ -109,10 +121,20 @@ export const projectSchema = z.object({
   duration: z.string().max(100).default(""),
 });
 
+export const meetingRequestSchema = z.object({
+  message: z.string().max(2000, "A mensagem deve ter no máximo 2000 caracteres.").default(""),
+  proposed_at: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Data e horário inválidos.")
+    .optional()
+    .or(z.literal("")),
+  location: z.string().max(200, "O local deve ter no máximo 200 caracteres.").default(""),
+});
+
 export const evaluationSchema = z.object({
   project_id: z.number().int().positive(),
   opinion: z.string().max(5000).default(""),
-  feedback: z.string().max(5000).default(""),
+  feedback: z.string({ required_error: "O feedback é obrigatório." }).trim().min(1, "O feedback é obrigatório.").max(5000),
   decision: z.enum(["aprovado", "reprovado", "ajustes_solicitados"]),
   justification: z.string().max(5000).default(""),
 });

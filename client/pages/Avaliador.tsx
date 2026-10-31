@@ -3,35 +3,31 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { getProjects, assignProject, getEvaluationStats } from "@/lib/api";
 import { ApiError } from "@/lib/api";
-import type { Project } from "@shared/api";
-import { STATUS_LABELS, STATUS_COLORS } from "@shared/api";
-
-interface Stats {
-  total: number;
-  pending: number;
-  approved: number;
-  adjustments: number;
-}
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import type { EvaluationStats, Project } from "@shared/api";
+import { STATUS_LABELS, STATUS_COLORS, firstName } from "@shared/api";
 
 export default function Avaliador() {
   const { user } = useAuth();
+  const confirm = useConfirm();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [stats, setStats] = useState<Stats>({ total: 0, pending: 0, approved: 0, adjustments: 0 });
+  const [stats, setStats] = useState<EvaluationStats>({ total: 0, pending: 0, approved: 0, adjustments: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
   const [assignLoading, setAssignLoading] = useState<number | null>(null);
   const [tab, setTab] = useState<"pendentes" | "todos">("pendentes");
+  const debouncedSearch = useDebouncedValue(search.trim());
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
       const [projectsData, statsData] = await Promise.all([
-        getProjects({ status: statusFilter || undefined, search: search || undefined }),
+        getProjects({ search: debouncedSearch || undefined }),
         getEvaluationStats(),
       ]);
       setProjects(projectsData);
@@ -41,17 +37,28 @@ export default function Avaliador() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, search]);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const handleAssign = async (projectId: number) => {
-    if (!confirm("Deseja assumir a avaliação deste projeto?")) return;
-    setAssignLoading(projectId);
+  const handleAssign = async (project: Project) => {
+    const confirmed = await confirm({
+      title: "Assumir avaliação",
+      description: (
+        <>
+          Você será o avaliador responsável por <strong>{project.title}</strong>
+          {project.student_name ? <> e {project.student_name} será notificado(a)</> : null}. Outro professor não poderá
+          mais assumir este projeto.
+        </>
+      ),
+      confirmLabel: "Assumir avaliação",
+    });
+    if (!confirmed) return;
+    setAssignLoading(project.id);
     try {
-      await assignProject(projectId);
+      await assignProject(project.id);
       toast.success("Projeto assumido. Boa avaliação!");
       fetchData();
     } catch (err) {
@@ -64,13 +71,10 @@ export default function Avaliador() {
   const pendentes = projects.filter(
     (p) => p.status === "submetido" && !p.professor_id
   );
+  // Includes projects resubmitted after adjustments (they return to em_analise with me)
   const emAnalise = projects.filter(
-    (p) => p.status === "em_analise"
+    (p) => p.status === "em_analise" && p.professor_id === user?.id
   );
-  const historico = projects.filter(
-    (p) => ["aprovado", "reprovado", "ajustes_solicitados"].includes(p.status)
-  );
-
   const displayedProjects =
     tab === "pendentes"
       ? [...pendentes, ...emAnalise]
@@ -88,7 +92,7 @@ export default function Avaliador() {
           Área do Avaliador
         </h1>
         <p className="font-ubuntu text-lg sm:text-[20px] text-[#5A5858] mt-2">
-          Bem-vindo, Prof. {user?.name?.split(" ")[0]}. Gerencie as avaliações de projetos.
+          Bem-vindo, Prof. {firstName(user?.name ?? "")}. Gerencie as avaliações de projetos.
         </p>
 
         {/* Stats cards */}
@@ -177,7 +181,7 @@ export default function Avaliador() {
             </svg>
             <input
               type="text"
-              placeholder="Buscar projeto ou aluno..."
+              placeholder="Buscar projeto pelo título..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full outline-none font-ubuntu text-base text-[#5A5858] placeholder:text-[#5A5858]/60 bg-transparent"
@@ -277,7 +281,7 @@ export default function Avaliador() {
                       </Link>
                       {canAssign && (
                         <button
-                          onClick={() => handleAssign(project.id)}
+                          onClick={() => handleAssign(project)}
                           disabled={isAssigning}
                           className="px-3 py-1.5 bg-[#10512D] text-white rounded text-sm font-ubuntu hover:bg-[#0d4325] disabled:opacity-60"
                         >

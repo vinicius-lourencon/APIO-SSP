@@ -9,6 +9,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { ConfirmProvider } from "@/components/ConfirmDialog";
 
 import Login from "./pages/Login";
 import Index from "./pages/Index";
@@ -33,6 +34,7 @@ const queryClient = new QueryClient({
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
+      <ConfirmProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
@@ -116,6 +118,7 @@ const App = () => (
           </Routes>
         </AuthProvider>
       </BrowserRouter>
+      </ConfirmProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

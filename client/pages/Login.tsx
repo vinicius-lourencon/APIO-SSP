@@ -2,12 +2,16 @@ import { useState, FormEvent } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { ApiError } from "@/lib/api";
+import { ROLE_EMAIL_DOMAINS, emailMatchesRole, type UserRole } from "@shared/api";
 
-const LOGO_URL =
-  "https://api.builder.io/api/v1/image/assets/TEMP/ed1ee9a31b22bdde676872eef7ab1779ba3043b1?width=124";
+const LOGO_URL = "/logo-sisapa.png";
+
+const DEMO_EMAILS: Record<UserRole, string> = {
+  aluno: "joao.silva@estudante.ifms.edu.br",
+  professor: "ana.costa@ifms.edu.br",
+};
 
 type Tab = "entrar" | "cadastrar";
-type UserRole = "aluno" | "professor";
 
 export default function Login() {
   const { login, register } = useAuth();
@@ -55,6 +59,14 @@ export default function Login() {
     setError("");
     if (regPassword !== regConfirm) {
       setError("As senhas não coincidem.");
+      return;
+    }
+    if (!emailMatchesRole(regEmail, role)) {
+      setError(
+        role === "professor"
+          ? `Professores devem usar um e-mail ${ROLE_EMAIL_DOMAINS.professor}.`
+          : `Alunos devem usar um e-mail ${ROLE_EMAIL_DOMAINS.aluno}.`
+      );
       return;
     }
     setLoading(true);
@@ -171,7 +183,7 @@ export default function Login() {
                   required
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder={role === "aluno" ? "aluno@ifms.edu.br" : "professor@ifms.edu.br"}
+                  placeholder={`seunome${ROLE_EMAIL_DOMAINS[role]}`}
                   className="w-full border border-[#CCC] rounded-lg h-10 px-3 text-sm text-[#333] focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D]"
                 />
               </div>
@@ -199,11 +211,7 @@ export default function Login() {
                   type="button"
                   className="text-[#10512D] hover:underline"
                   onClick={() => {
-                    setLoginEmail(
-                      role === "aluno"
-                        ? "joao.silva@aluno.ifms.edu.br"
-                        : "ana.costa@ifms.edu.br"
-                    );
+                    setLoginEmail(DEMO_EMAILS[role]);
                     setLoginPassword("senha123");
                   }}
                 >
@@ -224,7 +232,10 @@ export default function Login() {
               <div>
                 <label className="block text-sm font-medium text-[#5A5858] mb-1">E-mail *</label>
                 <input type="email" required value={regEmail} onChange={(e) => setRegEmail(e.target.value)}
-                  placeholder="seunome@ifms.edu.br" className="w-full border border-[#CCC] rounded-lg h-10 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D]" />
+                  placeholder={`seunome${ROLE_EMAIL_DOMAINS[role]}`} aria-describedby="reg-email-hint" className="w-full border border-[#CCC] rounded-lg h-10 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D]" />
+                <p id="reg-email-hint" className="text-xs text-[#999] mt-1">
+                  Use seu e-mail institucional {ROLE_EMAIL_DOMAINS[role]}
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-[#5A5858] mb-1">CPF</label>

@@ -1,14 +1,13 @@
-import { useState, FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
+import { firstName } from "@shared/api";
 
+// Read-only profile: there is no endpoint to update profile data or the password yet
 export default function Profile() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [editing, setEditing] = useState(false);
 
-  // Form state mirrors current user (read-only for now; update endpoint can be added later)
   const handleLogout = () => {
     logout();
     navigate("/");
@@ -23,8 +22,7 @@ export default function Profile() {
   }
 
   const isStudent = user.role === "aluno";
-  const isProfessor = user.role === "professor";
-  const initial = user.name.charAt(0).toUpperCase();
+  const initial = firstName(user.name).charAt(0).toUpperCase();
   const roleLabel = isStudent ? "Aluno" : "Professor";
   const backPath = isStudent ? "/meus-projetos" : "/avaliador";
 

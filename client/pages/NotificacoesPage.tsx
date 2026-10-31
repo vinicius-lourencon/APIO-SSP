@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import Header from "@/components/layout/Header";
+import { useConfirm } from "@/components/ConfirmDialog";
 import {
   getNotifications,
   markNotificationRead,
@@ -26,6 +27,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default function NotificacoesPage() {
+  const confirm = useConfirm();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -74,7 +76,13 @@ export default function NotificacoesPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Deseja excluir esta notificação?")) return;
+    const confirmed = await confirm({
+      title: "Excluir notificação",
+      description: "A notificação será removida da sua lista. Esta ação não pode ser desfeita.",
+      confirmLabel: "Excluir",
+      variant: "danger",
+    });
+    if (!confirmed) return;
     setDeletingId(id);
     try {
       await deleteNotification(id);

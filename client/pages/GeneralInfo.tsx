@@ -72,14 +72,15 @@ export default function GeneralInfo() {
     setLoading(true);
 
     try {
+      // Empty strings (not undefined) so clearing a field actually clears it
       await updateProject(projectId, {
-        objectives: objectives.trim() || undefined,
-        description: description.trim() || undefined,
-        impact: impact.trim() || undefined,
-        area: knowledgeArea || undefined,
+        objectives: objectives.trim(),
+        description: description.trim(),
+        impact: impact.trim(),
+        area: knowledgeArea,
         keywords,
-        schedule: schedule.trim() || undefined,
-        resources: resources.trim() || undefined,
+        schedule: schedule.trim(),
+        resources: resources.trim(),
       });
 
       if (andSubmit) {

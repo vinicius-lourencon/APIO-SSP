@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import Header from "@/components/layout/Header";
+import MeetingRequestDialog from "@/components/MeetingRequestDialog";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { useAuth } from "@/contexts/AuthContext";
-import { getProject, deleteAttachment, submitProject, getDownloadUrl } from "@/lib/api";
+import { getProject, deleteAttachment, submitProject, downloadAttachment } from "@/lib/api";
 import { ApiError } from "@/lib/api";
-import type { Project } from "@shared/api";
-import { STATUS_LABELS, STATUS_COLORS } from "@shared/api";
+import type { Attachment, MeetingRequestResponse, Project } from "@shared/api";
+import { STATUS_LABELS, STATUS_COLORS, isValidEmail, professorLabel } from "@shared/api";
 
 const HISTORY_ICONS: Record<string, string> = {
   criacao: "📄",
@@ -14,11 +16,16 @@ const HISTORY_ICONS: Record<string, string> = {
   avaliacao: "🔍",
   ajuste: "✏️",
   notificacao: "🔔",
+  reuniao: "📅",
 };
+
+const formatTime = (iso: string) =>
+  new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const projectId = id ? Number(id) : null;
 
@@ -26,27 +33,65 @@ export default function ProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deletingAttachment, setDeletingAttachment] = useState<number | null>(null);
+  const [downloadingAttachment, setDownloadingAttachment] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [meetingOpen, setMeetingOpen] = useState(false);
+  // ISO time until which a new meeting request is blocked (rate limit), null = allowed
+  const [meetingCooldownUntil, setMeetingCooldownUntil] = useState<string | null>(null);
+
+  const applyProject = useCallback((p: Project) => {
+    setProject(p);
+    setMeetingCooldownUntil(p.meeting_cooldown_until ?? null);
+  }, []);
 
   useEffect(() => {
     if (!projectId) return;
     setLoading(true);
     getProject(projectId)
-      .then(setProject)
+      .then(applyProject)
       .catch((err) => {
         setError(err instanceof ApiError ? err.message : "Projeto não encontrado.");
       })
       .finally(() => setLoading(false));
-  }, [projectId]);
+  }, [projectId, applyProject]);
 
-  const handleDeleteAttachment = async (attachmentId: number) => {
-    if (!confirm("Deseja remover este arquivo?")) return;
-    setDeletingAttachment(attachmentId);
+  // Re-enable "Solicitar reunião" when the cooldown ends
+  useEffect(() => {
+    if (!meetingCooldownUntil) return;
+    const ms = Date.parse(meetingCooldownUntil) - Date.now();
+    if (ms <= 0) {
+      setMeetingCooldownUntil(null);
+      return;
+    }
+    const timer = setTimeout(() => setMeetingCooldownUntil(null), ms);
+    return () => clearTimeout(timer);
+  }, [meetingCooldownUntil]);
+
+  const handleMeetingSent = (result: MeetingRequestResponse) => {
+    setMeetingCooldownUntil(result.nextAllowedAt);
+    // Reload to show the new history entry (and the schedule line, when a date was given)
+    if (projectId) getProject(projectId).then(applyProject).catch(() => {});
+  };
+
+  const handleDeleteAttachment = async (attachment: Attachment) => {
+    const confirmed = await confirm({
+      title: "Remover arquivo",
+      description: (
+        <>
+          O arquivo <strong>{attachment.original_name}</strong> será removido do projeto. Esta ação não pode ser
+          desfeita.
+        </>
+      ),
+      confirmLabel: "Remover arquivo",
+      variant: "danger",
+    });
+    if (!confirmed) return;
+    setDeletingAttachment(attachment.id);
     try {
-      await deleteAttachment(attachmentId);
+      await deleteAttachment(attachment.id);
       setProject((prev) =>
         prev
-          ? { ...prev, attachments: prev.attachments?.filter((a) => a.id !== attachmentId) }
+          ? { ...prev, attachments: prev.attachments?.filter((a) => a.id !== attachment.id) }
           : prev
       );
       toast.success("Arquivo removido.");
@@ -57,13 +102,32 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleDownload = async (attachmentId: number, filename: string) => {
+    setDownloadingAttachment(attachmentId);
+    try {
+      await downloadAttachment(attachmentId, filename);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Erro ao baixar arquivo.");
+    } finally {
+      setDownloadingAttachment(null);
+    }
+  };
+
   const handleSubmit = async () => {
-    if (!projectId) return;
-    if (!confirm("Deseja enviar este projeto para avaliação?")) return;
+    if (!projectId || !project) return;
+    const isResubmission = project.status === "ajustes_solicitados";
+    const confirmed = await confirm({
+      title: isResubmission ? "Reenviar para avaliação" : "Enviar para avaliação",
+      description: isResubmission
+        ? "O projeto volta para o mesmo avaliador, que será notificado. Ele não poderá ser editado durante a nova avaliação."
+        : "O projeto será enviado aos professores para avaliação. Ele não poderá ser editado enquanto estiver em avaliação.",
+      confirmLabel: isResubmission ? "Reenviar" : "Enviar para avaliação",
+    });
+    if (!confirmed) return;
     setSubmitting(true);
     try {
       await submitProject(projectId);
-      toast.success("Projeto enviado para avaliação!");
+      toast.success(isResubmission ? "Projeto reenviado ao avaliador!" : "Projeto enviado para avaliação!");
       navigate("/meus-projetos");
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Erro ao enviar projeto.");
@@ -106,8 +170,17 @@ export default function ProjectDetail() {
   const statusStyle = STATUS_COLORS[project.status];
   const statusLabel = STATUS_LABELS[project.status];
   const canEdit = isStudent && (project.status === "rascunho" || project.status === "ajustes_solicitados");
-  const canSubmit = isStudent && project.status === "rascunho";
-  const canEvaluate = isProfessor && project.status === "em_analise" && project.professor_id === user?.id;
+  const canSubmit = canEdit;
+  const isAssignedProfessor = isProfessor && project.professor_id === user?.id;
+  const canEvaluate = isAssignedProfessor && project.status === "em_analise";
+  // API rule: only the owner and the assigned evaluator can download attachments
+  const canDownload = isStudent || isAssignedProfessor;
+  const studentEmailValid = isValidEmail(project.student_email);
+  const meetingBlockedReason = !studentEmailValid
+    ? "O aluno não possui um e-mail válido cadastrado."
+    : meetingCooldownUntil
+      ? `Você já solicitou uma reunião recentemente. Nova solicitação disponível às ${formatTime(meetingCooldownUntil)}.`
+      : "";
   const backPath = isStudent ? "/meus-projetos" : "/avaliador";
 
   return (
@@ -140,7 +213,7 @@ export default function ProjectDetail() {
                   <span>Aluno: {project.student_name}</span>
                 )}
                 {project.professor_name && (
-                  <span>• Avaliador: Prof. {project.professor_name}</span>
+                  <span>• Avaliador: {professorLabel(project.professor_name)}</span>
                 )}
                 <span>• Criado em {new Date(project.created_at).toLocaleDateString("pt-BR")}</span>
               </div>
@@ -181,7 +254,11 @@ export default function ProjectDetail() {
                 disabled={submitting}
                 className="px-4 py-2 bg-[#008000] text-white rounded text-sm font-ubuntu hover:bg-green-800 disabled:opacity-60"
               >
-                {submitting ? "Enviando..." : "Enviar para Avaliação"}
+                {submitting
+                  ? "Enviando..."
+                  : project.status === "ajustes_solicitados"
+                    ? "Reenviar para Avaliação"
+                    : "Enviar para Avaliação"}
               </button>
             )}
             {canEvaluate && (
@@ -192,8 +269,36 @@ export default function ProjectDetail() {
                 Avaliar projeto
               </Link>
             )}
+            {isAssignedProfessor && (
+              <button
+                type="button"
+                onClick={() => setMeetingOpen(true)}
+                disabled={!!meetingBlockedReason}
+                title={meetingBlockedReason || "Enviar um e-mail ao aluno solicitando uma reunião"}
+                aria-describedby={meetingBlockedReason ? "meeting-blocked-reason" : undefined}
+                className="px-4 py-2 border border-[#10512D] rounded text-sm font-ubuntu text-[#10512D] hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                📅 Solicitar reunião
+              </button>
+            )}
           </div>
+          {isAssignedProfessor && meetingBlockedReason && (
+            <p id="meeting-blocked-reason" className="text-xs text-[#5A5858] mt-2">
+              {meetingBlockedReason}
+            </p>
+          )}
         </div>
+
+        {isAssignedProfessor && project.student_email && (
+          <MeetingRequestDialog
+            open={meetingOpen}
+            onOpenChange={setMeetingOpen}
+            projectId={project.id}
+            studentName={project.student_name ?? "Aluno"}
+            studentEmail={project.student_email}
+            onSent={handleMeetingSent}
+          />
+        )}
 
         {/* Main content grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -263,7 +368,7 @@ export default function ProjectDetail() {
                       <div key={ev.id} className={`border rounded-lg p-4 ${decisionColors[ev.decision]}`}>
                         <div className="flex items-center justify-between mb-2">
                           <span className="font-ubuntu font-semibold text-sm">
-                            {ev.professor_name ? `Prof. ${ev.professor_name}` : "Avaliador"}
+                            {ev.professor_name ? professorLabel(ev.professor_name) : "Avaliador"}
                           </span>
                           <div className="flex items-center gap-2">
                             <span className="font-ubuntu text-xs font-medium">
@@ -309,19 +414,23 @@ export default function ProjectDetail() {
                         <p className="text-xs text-[#999]">{(att.size / 1024 / 1024).toFixed(1)}MB</p>
                       </div>
                       <div className="flex gap-1">
-                        <a
-                          href={getDownloadUrl(att.id)}
-                          download
-                          className="p-1 rounded hover:bg-gray-100 text-[#10512D]"
-                          title="Baixar"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                          </svg>
-                        </a>
+                        {canDownload && (
+                          <button
+                            type="button"
+                            onClick={() => handleDownload(att.id, att.original_name)}
+                            disabled={downloadingAttachment === att.id}
+                            className="p-1 rounded hover:bg-gray-100 text-[#10512D] disabled:opacity-50"
+                            title="Baixar"
+                            aria-label={`Baixar ${att.original_name}`}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                          </button>
+                        )}
                         {canEdit && (
                           <button
-                            onClick={() => handleDeleteAttachment(att.id)}
+                            onClick={() => handleDeleteAttachment(att)}
                             disabled={deletingAttachment === att.id}
                             className="p-1 rounded hover:bg-red-50 text-red-500 disabled:opacity-50"
                             title="Remover"
