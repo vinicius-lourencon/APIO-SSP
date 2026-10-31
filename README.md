@@ -101,29 +101,9 @@ Os dados ficam em `sisapa.db` (e `sisapa.db-wal`/`-shm`) e os anexos em `uploads
 
 ---
 
-## Configuração (`.env`)
+## Configuração
 
-Copie `.env.example` para `.env`. **Nunca envie o `.env` para o repositório** (ele já está no `.gitignore`).
-
-| Variável | Para que serve |
-|---|---|
-| `JWT_SECRET` | Segredo dos tokens de login. Obrigatório no `pnpm start`; no `pnpm dev` há um segredo de desenvolvimento |
-| `PORT` | Porta do `pnpm start` (padrão 3000) |
-| `CORS_ORIGINS` | Origens extras liberadas (mesma origem e `localhost` já são aceitos) |
-| `SEED` | `1` cria os usuários de demonstração também no `pnpm start` |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE` | Servidor de e-mail (já vêm prontos para o Gmail: `smtp.gmail.com`, 465, `true`) |
-| `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | Conta remetente e senha de app |
-| `EMAIL_TRANSPORT` | Só para testes: `log` imprime os e-mails no terminal em vez de enviar (a tela avisa) |
-| `EMAIL_REDIRECT_TO` | Durante testes, desvia **todos** os e-mails para este endereço |
-
-### Envio de e-mail com Gmail
-1. Use uma conta Gmail (de preferência só para o SISAPA) com **verificação em duas etapas**.
-2. Gere uma **senha de app** em https://myaccount.google.com/apppasswords.
-3. Preencha `SMTP_USER` (o endereço) e `SMTP_PASS` (a senha de app) no `.env`.
-
-**Jeito mais fácil:** na primeira vez em cada computador, o `iniciar-sisapa.bat` pergunta o e-mail e a senha de app, testa o login no Gmail e grava no `.env` local. Para refazer depois: `pnpm email:config`.
-
-Sem essa configuração o SISAPA **não envia** e avisa na tela que o e-mail não está configurado (nada é registrado como enviado). Os alunos de demonstração usam e-mails de um domínio real: ao testar, defina `EMAIL_REDIRECT_TO` com o seu endereço.
+As variáveis de ambiente estão descritas em `.env.example`; copie-o para `.env` e ajuste. O envio de e-mail usa SMTP (por exemplo, Gmail com senha de app) e pode ser configurado de forma guiada com `pnpm email:config`.
 
 ---
 
