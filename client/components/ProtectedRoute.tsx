@@ -1,4 +1,7 @@
 import { Navigate, useLocation } from "react-router-dom";
+import { RefreshCw, WifiOff } from "lucide-react";
+import { EmptyState } from "@/components/PageStates";
+import { primaryButton, secondaryButton } from "@/lib/styles";
 import { useAuth } from "@/contexts/AuthContext";
 import type { UserRole } from "@shared/api";
 
@@ -8,7 +11,7 @@ interface Props {
 }
 
 export default function ProtectedRoute({ children, requiredRole }: Props) {
-  const { user, loading } = useAuth();
+  const { user, loading, sessionError, retrySession, logout } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -19,6 +22,31 @@ export default function ProtectedRoute({ children, requiredRole }: Props) {
           <p className="font-ubuntu text-[#5A5858]">Carregando...</p>
         </div>
       </div>
+    );
+  }
+
+  if (!user && sessionError) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#F6F8F6] p-6 font-ubuntu">
+        <div className="w-full max-w-md" role="alert">
+          <EmptyState
+            icon={WifiOff}
+            title="Não conseguimos confirmar sua sessão"
+            description={`${sessionError} Você continua conectado.`}
+            action={
+              <div className="flex flex-wrap justify-center gap-3">
+                <button type="button" onClick={retrySession} className={primaryButton}>
+                  <RefreshCw className="h-4 w-4" aria-hidden />
+                  Tentar novamente
+                </button>
+                <button type="button" onClick={logout} className={secondaryButton}>
+                  Sair da conta
+                </button>
+              </div>
+            }
+          />
+        </div>
+      </main>
     );
   }
 
