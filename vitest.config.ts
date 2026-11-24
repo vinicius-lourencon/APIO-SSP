@@ -5,8 +5,8 @@ import path from "node:path";
 export default defineConfig({
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./client"),
-      "@shared": path.resolve(__dirname, "./shared"),
+      "@": path.resolve(import.meta.dirname, "./client"),
+      "@shared": path.resolve(import.meta.dirname, "./shared"),
     },
   },
   test: {
