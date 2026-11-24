@@ -1,14 +1,32 @@
 import { useState, useEffect, KeyboardEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import Header from "@/components/layout/Header";
+import { m } from "motion/react";
+import { ArrowLeft, FolderPlus, Plus, Send, X } from "lucide-react";
+import {
+  PageHeading,
+  PageShell,
+  fieldClass,
+  primaryButton,
+  secondaryButton,
+  surface,
+} from "@/components/layout/PageShell";
+import { EmptyState, ListSkeleton } from "@/components/PageStates";
+import { FormField } from "@/components/FormField";
+import { StepIndicator } from "@/components/StepIndicator";
 import { getProject, updateProject, submitProject } from "@/lib/api";
 import { ApiError } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { fadeUp } from "@/lib/motion";
 import { KNOWLEDGE_AREAS } from "@shared/api";
+
+const textarea = cn(fieldClass, "min-h-32 resize-y");
 
 export default function GeneralInfo() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const projectId = searchParams.get("id") ? Number(searchParams.get("id")) : null;
+  const projectId = searchParams.get("id")
+    ? Number(searchParams.get("id"))
+    : null;
 
   const [objectives, setObjectives] = useState("");
   const [description, setDescription] = useState("");
@@ -65,7 +83,9 @@ export default function GeneralInfo() {
       return;
     }
     if (andSubmit && !description.trim()) {
-      setError("A descrição é obrigatória para enviar o projeto para avaliação.");
+      setError(
+        "A descrição é obrigatória para enviar o projeto para avaliação.",
+      );
       return;
     }
     setError("");
@@ -89,7 +109,9 @@ export default function GeneralInfo() {
 
       navigate("/meus-projetos");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erro ao salvar projeto.");
+      setError(
+        err instanceof ApiError ? err.message : "Erro ao salvar projeto.",
+      );
     } finally {
       setLoading(false);
     }
@@ -97,253 +119,207 @@ export default function GeneralInfo() {
 
   if (loadingProject) {
     return (
-      <div className="min-h-screen bg-white font-ubuntu">
-        <Header />
-        <div className="flex items-center justify-center py-24">
-          <div className="w-8 h-8 border-4 border-[#10512D] border-t-transparent rounded-full animate-spin" />
-        </div>
-      </div>
+      <PageShell width="max-w-3xl">
+        <ListSkeleton count={2} />
+      </PageShell>
     );
   }
 
   if (!projectId) {
     return (
-      <div className="min-h-screen bg-white font-ubuntu">
-        <Header />
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-[53px] py-16 text-center">
-          <p className="text-[#5A5858] mb-4">Nenhum projeto em andamento. Inicie pelo primeiro passo.</p>
-          <Link to="/novo-projeto" className="bg-[#008000] text-white font-ubuntu px-6 py-2.5 rounded hover:bg-green-800">
-            Começar do início
-          </Link>
-        </div>
-      </div>
+      <PageShell width="max-w-3xl">
+        <EmptyState
+          icon={FolderPlus}
+          title="Nenhum projeto em andamento"
+          description="Inicie pelo primeiro passo para criar o rascunho."
+          action={
+            <Link to="/novo-projeto" className={primaryButton}>
+              Começar do início
+            </Link>
+          }
+        />
+      </PageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white font-ubuntu">
-      <Header />
-      <main className="max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-[53px] py-8">
-        <h1 className="font-ubuntu font-bold text-3xl sm:text-[36px] text-black">
-          Informações Gerais do Projeto
-        </h1>
-        <p className="font-ubuntu text-lg sm:text-[20px] text-[#5A5858] mt-2">
-          Passo 2 de 2 — Complete as informações gerais
-        </p>
+    <PageShell width="max-w-3xl">
+      <PageHeading
+        title="Informações gerais"
+        subtitle="Último passo: conte mais sobre o projeto."
+      />
 
-        {/* Tab bar */}
-        <div className="mt-8 rounded border border-[#CCC] bg-[rgba(204,204,204,0.80)] px-4 sm:px-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 min-h-[67px]">
-          <div className="flex items-center">
-            <Link
-              to="/meus-projetos"
-              className="font-ubuntu text-[20px] text-[#5A5858]/60 px-4 py-4 sm:py-0 hover:opacity-100 transition-opacity"
+      <m.div className="mt-6" {...fadeUp(0.06)}>
+        <StepIndicator
+          current={2}
+          detailsHref={`/novo-projeto?id=${projectId}`}
+        />
+      </m.div>
+
+      <m.div
+        className={cn("mt-6 rounded-3xl p-6 sm:p-8", surface)}
+        {...fadeUp(0.12)}
+      >
+        {error && (
+          <div
+            role="alert"
+            className="mb-6 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+          >
+            {error}
+          </div>
+        )}
+
+        <div className="space-y-6">
+          <FormField label="Descrição" counter={`${description.length}/4000`}>
+            <textarea
+              placeholder="Descreva o projeto detalhadamente"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              maxLength={4000}
+              className={textarea}
+            />
+          </FormField>
+
+          <FormField label="Objetivos" counter={`${objectives.length}/2000`}>
+            <textarea
+              placeholder="Descreva os objetivos principais do projeto"
+              value={objectives}
+              onChange={(e) => setObjectives(e.target.value)}
+              maxLength={2000}
+              className={textarea}
+            />
+          </FormField>
+
+          <FormField label="Impacto esperado" counter={`${impact.length}/2000`}>
+            <textarea
+              placeholder="Descreva o impacto esperado do projeto na comunidade"
+              value={impact}
+              onChange={(e) => setImpact(e.target.value)}
+              maxLength={2000}
+              className={textarea}
+            />
+          </FormField>
+
+          <FormField label="Área de conhecimento">
+            <select
+              value={knowledgeArea}
+              onChange={(e) => setKnowledgeArea(e.target.value)}
+              className={cn(fieldClass, "h-12")}
             >
-              Meus Projetos
-            </Link>
-            <span className="font-ubuntu text-[20px] font-semibold text-[#5A5858] px-4 py-4 sm:py-0">
-              Novo Projeto
-            </span>
-          </div>
-          {/* Step indicator */}
-          <div className="hidden sm:flex items-center gap-2 text-sm text-[#5A5858]">
-            <Link to={`/novo-projeto?id=${projectId}`} className="flex items-center gap-1 hover:underline">
-              <span className="w-6 h-6 rounded-full bg-green-200 text-green-700 flex items-center justify-center font-bold text-xs">✓</span>
-              <span>Detalhes</span>
-            </Link>
-            <svg className="w-4 h-4 text-[#CCC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-            <span className="w-6 h-6 rounded-full bg-[#10512D] text-white flex items-center justify-center font-bold text-xs">2</span>
-            <span className="font-medium text-[#10512D]">Informações Gerais</span>
-          </div>
-        </div>
+              <option value="">Selecione a área</option>
+              {KNOWLEDGE_AREAS.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </select>
+          </FormField>
 
-        <div className="border border-[#CCC] rounded-lg mt-1 bg-white px-4 sm:px-8 lg:px-[50px] py-8 lg:py-10">
-          {error && (
-            <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-              {error}
-            </div>
-          )}
-
-          <h2 className="font-ubuntu font-bold text-2xl sm:text-[32px] text-black mb-8">
-            Informações Gerais
-          </h2>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-6">
-            {/* Objectives */}
-            <div>
-              <label className="block font-ubuntu text-[20px] text-[#5A5858] mb-2">
-                Objetivos
-              </label>
-              <textarea
-                placeholder="Descreva os objetivos principais do projeto"
-                value={objectives}
-                onChange={(e) => setObjectives(e.target.value)}
-                maxLength={2000}
-                className="w-full border border-[#CCC] rounded px-3 py-2 font-ubuntu text-base text-[#5A5858] placeholder:text-[#5A5858]/60 bg-white focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D] resize-none h-[120px]"
-              />
-            </div>
-
-            {/* Description */}
-            <div>
-              <label className="block font-ubuntu text-[20px] text-[#5A5858] mb-2">
-                Descrição
-              </label>
-              <textarea
-                placeholder="Descreva o projeto detalhadamente"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                maxLength={4000}
-                className="w-full border border-[#CCC] rounded px-3 py-2 font-ubuntu text-base text-[#5A5858] placeholder:text-[#5A5858]/60 bg-white focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D] resize-none h-[120px]"
-              />
-            </div>
-
-            {/* Impact */}
-            <div>
-              <label className="block font-ubuntu text-[20px] text-[#5A5858] mb-2">
-                Impacto Esperado
-              </label>
-              <textarea
-                placeholder="Descreva o impacto esperado do projeto na comunidade"
-                value={impact}
-                onChange={(e) => setImpact(e.target.value)}
-                maxLength={2000}
-                className="w-full border border-[#CCC] rounded px-3 py-2 font-ubuntu text-base text-[#5A5858] placeholder:text-[#5A5858]/60 bg-white focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D] resize-none h-[120px]"
-              />
-            </div>
-
-            {/* Knowledge area */}
-            <div>
-              <label className="block font-ubuntu text-[20px] text-[#5A5858] mb-2">
-                Área de Conhecimento
-              </label>
-              <select
-                value={knowledgeArea}
-                onChange={(e) => setKnowledgeArea(e.target.value)}
-                className="w-full border border-[#CCC] rounded h-[49px] px-3 font-ubuntu text-base text-[#5A5858] bg-white focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D]"
-              >
-                <option value="">Selecione a área</option>
-                {KNOWLEDGE_AREAS.map((a) => (
-                  <option key={a} value={a}>{a}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Schedule */}
-            <div>
-              <label className="block font-ubuntu text-[20px] text-[#5A5858] mb-2">
-                Cronograma
-              </label>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <FormField label="Cronograma" counter={`${schedule.length}/2000`}>
               <textarea
                 placeholder="Descreva o cronograma de atividades"
                 value={schedule}
                 onChange={(e) => setSchedule(e.target.value)}
                 maxLength={2000}
-                className="w-full border border-[#CCC] rounded px-3 py-2 font-ubuntu text-base text-[#5A5858] placeholder:text-[#5A5858]/60 bg-white focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D] resize-none h-[120px]"
+                className={textarea}
               />
-            </div>
+            </FormField>
 
-            {/* Resources */}
-            <div>
-              <label className="block font-ubuntu text-[20px] text-[#5A5858] mb-2">
-                Recursos Necessários
-              </label>
+            <FormField
+              label="Recursos necessários"
+              counter={`${resources.length}/2000`}
+            >
               <textarea
                 placeholder="Liste os recursos humanos, materiais e financeiros"
                 value={resources}
                 onChange={(e) => setResources(e.target.value)}
                 maxLength={2000}
-                className="w-full border border-[#CCC] rounded px-3 py-2 font-ubuntu text-base text-[#5A5858] placeholder:text-[#5A5858]/60 bg-white focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D] resize-none h-[120px]"
+                className={textarea}
               />
-            </div>
+            </FormField>
           </div>
 
-          {/* Keywords */}
-          <div className="mt-8">
-            <label className="block font-ubuntu text-[20px] text-[#5A5858] mb-4">
-              Palavras-chave
-            </label>
-            <div className="flex flex-wrap gap-2 mb-4 min-h-[36px]">
-              {keywords.map((kw, i) => (
-                <span
-                  key={i}
-                  className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-3 py-1 rounded-full font-ubuntu text-sm"
-                >
-                  {kw}
-                  <button
-                    type="button"
-                    onClick={() => removeKeyword(i)}
-                    className="text-green-700 hover:text-green-900 font-bold leading-none"
-                    aria-label={`Remover ${kw}`}
+          <div>
+            <p className="mb-2 text-sm font-medium text-[#3D3B3B]">
+              Palavras-chave{" "}
+              <span className="text-xs font-normal text-[#8A8888]">até 10</span>
+            </p>
+            {keywords.length > 0 && (
+              <ul className="mb-3 flex flex-wrap gap-2">
+                {keywords.map((kw, i) => (
+                  <li
+                    key={kw}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-[#10512D]/10 py-1 pl-3 pr-1.5 text-sm font-medium text-[#10512D]"
                   >
-                    ×
-                  </button>
-                </span>
-              ))}
-              {keywords.length === 0 && (
-                <span className="text-sm text-[#5A5858]/60 font-ubuntu self-center">
-                  Nenhuma palavra-chave adicionada
-                </span>
-              )}
-            </div>
+                    {kw}
+                    <button
+                      type="button"
+                      onClick={() => removeKeyword(i)}
+                      className="flex h-5 w-5 items-center justify-center rounded-full transition-colors hover:bg-[#10512D]/15"
+                      aria-label={`Remover ${kw}`}
+                    >
+                      <X className="h-3 w-3" aria-hidden />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
             {keywords.length < 10 && (
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row">
                 <input
                   type="text"
+                  aria-label="Nova palavra-chave"
                   placeholder="Digite uma palavra-chave e pressione Enter"
                   value={newKeyword}
                   onChange={(e) => setNewKeyword(e.target.value)}
                   onKeyDown={handleKeyPress}
                   maxLength={50}
-                  className="flex-1 border border-[#CCC] rounded h-[49px] px-3 font-ubuntu text-base text-[#5A5858] placeholder:text-[#5A5858]/60 bg-white focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D]"
+                  className={cn(fieldClass, "h-12 flex-1")}
                 />
                 <button
                   type="button"
                   onClick={addKeyword}
                   disabled={!newKeyword.trim()}
-                  className="flex items-center justify-center gap-2 px-6 h-[49px] border border-[#CCC] rounded bg-white font-ubuntu text-base text-[#5A5858] hover:bg-gray-50 transition-colors disabled:opacity-50 whitespace-nowrap"
+                  className={secondaryButton}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
+                  <Plus className="h-4 w-4" aria-hidden />
                   Adicionar
                 </button>
               </div>
             )}
           </div>
+        </div>
 
-          {/* Action buttons */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mt-10">
-            <Link
-              to={`/novo-projeto?id=${projectId}`}
-              className="flex items-center justify-center gap-2 border border-[#CCC] bg-white rounded h-[43px] min-w-[160px] font-ubuntu text-[18px] text-black hover:bg-gray-50 transition-colors px-6"
+        <div className="mt-10 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Link
+            to={`/novo-projeto?id=${projectId}`}
+            className={cn(secondaryButton, "sm:w-auto")}
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Voltar
+          </Link>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => handleSave(false)}
+              disabled={loading}
+              className={secondaryButton}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Voltar
-            </Link>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                type="button"
-                onClick={() => handleSave(false)}
-                disabled={loading}
-                className="border border-[#CCC] bg-white rounded h-[43px] min-w-[200px] font-ubuntu text-[18px] text-black hover:bg-gray-50 disabled:opacity-60 transition-colors px-6"
-              >
-                {loading ? "Salvando..." : "Salvar como Rascunho"}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSave(true)}
-                disabled={loading}
-                className="bg-[#008000] text-white rounded h-[43px] min-w-[220px] font-ubuntu text-[18px] hover:bg-green-800 disabled:opacity-60 transition-colors px-6"
-              >
-                {loading ? "Enviando..." : "Salvar e Enviar para Avaliação"}
-              </button>
-            </div>
+              {loading ? "Salvando..." : "Salvar rascunho"}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSave(true)}
+              disabled={loading}
+              className={primaryButton}
+            >
+              <Send className="h-4 w-4" aria-hidden />
+              {loading ? "Enviando..." : "Salvar e enviar para avaliação"}
+            </button>
           </div>
         </div>
-      </main>
-    </div>
+      </m.div>
+    </PageShell>
   );
 }

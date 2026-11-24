@@ -1,4 +1,11 @@
-import { createContext, ReactNode, useCallback, useContext, useRef, useState } from "react";
+import {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useRef,
+  useState,
+} from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,6 +17,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { primaryButton, secondaryButton } from "@/lib/styles";
 
 export interface ConfirmOptions {
   title: string;
@@ -52,30 +60,39 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   return (
     <ConfirmContext.Provider value={confirm}>
       {children}
-      <AlertDialog open={open} onOpenChange={(isOpen) => !isOpen && settle(false)}>
-        <AlertDialogContent className="font-ubuntu sm:max-w-md">
+      <AlertDialog
+        open={open}
+        onOpenChange={(isOpen) => !isOpen && settle(false)}
+      >
+        <AlertDialogContent className="border-black/5 bg-white font-ubuntu sm:max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle className={cn("text-xl", danger ? "text-red-700" : "text-[#10512D]")}>
+            <AlertDialogTitle
+              className={cn(
+                "text-xl font-semibold",
+                danger ? "text-red-700" : "text-[#10231A]",
+              )}
+            >
               {options.title}
             </AlertDialogTitle>
             {options.description && (
-              <AlertDialogDescription className="text-[#5A5858] text-sm leading-relaxed">
+              <AlertDialogDescription className="text-sm leading-relaxed text-[#5A5858]">
                 {options.description}
               </AlertDialogDescription>
             )}
           </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2 sm:gap-0">
+          <AlertDialogFooter className="mt-2 gap-2 sm:gap-2">
             <AlertDialogCancel
               onClick={() => settle(false)}
-              className="border-[#CCC] text-[#333] hover:bg-gray-50"
+              className={cn(secondaryButton, "mt-0 text-[#333]")}
             >
               {options.cancelLabel ?? "Cancelar"}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => settle(true)}
               className={cn(
-                "text-white",
-                danger ? "bg-red-600 hover:bg-red-700" : "bg-[#10512D] hover:bg-[#0d4325]",
+                primaryButton,
+                danger &&
+                  "bg-red-600 shadow-none hover:bg-red-700 focus-visible:ring-red-200",
               )}
             >
               {options.confirmLabel ?? "Confirmar"}
@@ -89,6 +106,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
 
 export function useConfirm(): ConfirmFn {
   const confirm = useContext(ConfirmContext);
-  if (!confirm) throw new Error("useConfirm must be used within ConfirmProvider");
+  if (!confirm)
+    throw new Error("useConfirm must be used within ConfirmProvider");
   return confirm;
 }

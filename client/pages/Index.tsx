@@ -1,16 +1,42 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import Header from "@/components/layout/Header";
-import { createProject, updateProject, uploadFiles, getProject } from "@/lib/api";
+import { m } from "motion/react";
+import { ArrowRight, FileText, UploadCloud, X } from "lucide-react";
+import {
+  PageHeading,
+  PageShell,
+  fieldClass,
+  primaryButton,
+  secondaryButton,
+  surface,
+} from "@/components/layout/PageShell";
+import { FormField } from "@/components/FormField";
+import { ListSkeleton } from "@/components/PageStates";
+import { StepIndicator } from "@/components/StepIndicator";
+import {
+  createProject,
+  updateProject,
+  uploadFiles,
+  getProject,
+} from "@/lib/api";
 import { ApiError } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { fadeUp } from "@/lib/motion";
 import { PROPOSAL_TYPES } from "@shared/api";
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
-const ALLOWED_TYPES = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+const ALLOWED_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
 const ALLOWED_EXT = [".pdf", ".doc", ".docx"];
 
 function validateFile(file: File): string | null {
-  if (!ALLOWED_TYPES.includes(file.type) && !ALLOWED_EXT.some((ext) => file.name.toLowerCase().endsWith(ext))) {
+  if (
+    !ALLOWED_TYPES.includes(file.type) &&
+    !ALLOWED_EXT.some((ext) => file.name.toLowerCase().endsWith(ext))
+  ) {
     return "Formato inválido. Use PDF, DOC ou DOCX.";
   }
   if (file.size > MAX_FILE_SIZE) {
@@ -58,10 +84,9 @@ export default function NovoProjeto() {
   }, [editId]);
 
   const handleAddFiles = (incoming: FileList | File[]) => {
-    const arr = Array.from(incoming);
     const errs: string[] = [];
     const valid: File[] = [];
-    for (const f of arr) {
+    for (const f of Array.from(incoming)) {
       const err = validateFile(f);
       if (err) {
         errs.push(`${f.name}: ${err}`);
@@ -70,10 +95,7 @@ export default function NovoProjeto() {
       }
     }
     setFileErrors(errs);
-    setFiles((prev) => {
-      const combined = [...prev, ...valid];
-      return combined.slice(0, 2); // max 2 files
-    });
+    setFiles((prev) => [...prev, ...valid].slice(0, 2)); // max 2 files
   };
 
   const removeFile = (idx: number) => {
@@ -86,7 +108,9 @@ export default function NovoProjeto() {
     handleAddFiles(e.dataTransfer.files);
   };
 
-  const handleSave = async (andNavigateTo: "meus-projetos" | "informacoes-gerais") => {
+  const handleSave = async (
+    andNavigateTo: "meus-projetos" | "informacoes-gerais",
+  ) => {
     if (!title.trim()) {
       setError("O título do projeto é obrigatório.");
       return;
@@ -124,7 +148,9 @@ export default function NovoProjeto() {
         navigate("/meus-projetos");
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erro ao salvar projeto.");
+      setError(
+        err instanceof ApiError ? err.message : "Erro ao salvar projeto.",
+      );
     } finally {
       setLoading(false);
     }
@@ -132,63 +158,38 @@ export default function NovoProjeto() {
 
   if (loadingProject) {
     return (
-      <div className="min-h-screen bg-white font-ubuntu">
-        <Header />
-        <div className="flex items-center justify-center py-24">
-          <div className="w-8 h-8 border-4 border-[#10512D] border-t-transparent rounded-full animate-spin" />
-        </div>
-      </div>
+      <PageShell width="max-w-3xl">
+        <ListSkeleton count={2} />
+      </PageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white font-ubuntu">
-      <Header />
-      <main className="max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-[53px] py-8">
-        <h1 className="font-ubuntu font-bold text-3xl sm:text-[36px] text-black">
-          {editId ? "Editar Projeto" : "Novo Projeto de Extensão"}
-        </h1>
-        <p className="font-ubuntu text-lg sm:text-[20px] text-[#5A5858] mt-2">
-          Preencha as informações do seu projeto
-        </p>
+    <PageShell width="max-w-3xl">
+      <PageHeading
+        title={editId ? "Editar projeto" : "Novo projeto"}
+        subtitle="Comece pelo básico. Você completa o resto no próximo passo."
+      />
 
-        {/* Tab bar */}
-        <div className="mt-8 rounded border border-[#CCC] bg-[rgba(204,204,204,0.80)] px-4 sm:px-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 min-h-[67px]">
-          <div className="flex items-center">
-            <Link
-              to="/meus-projetos"
-              className="font-ubuntu text-[20px] text-[#5A5858]/60 px-4 py-4 sm:py-0 hover:opacity-100 transition-opacity"
-            >
-              Meus Projetos
-            </Link>
-            <span className="font-ubuntu text-[20px] font-semibold text-[#5A5858] px-4 py-4 sm:py-0">
-              {editId ? "Editar Projeto" : "Novo Projeto"}
-            </span>
+      <m.div className="mt-6" {...fadeUp(0.06)}>
+        <StepIndicator current={1} />
+      </m.div>
+
+      <m.div
+        className={cn("mt-6 rounded-3xl p-6 sm:p-8", surface)}
+        {...fadeUp(0.12)}
+      >
+        {error && (
+          <div
+            role="alert"
+            className="mb-6 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+          >
+            {error}
           </div>
-          {/* Step indicator */}
-          <div className="hidden sm:flex items-center gap-2 text-sm text-[#5A5858]">
-            <span className="w-6 h-6 rounded-full bg-[#10512D] text-white flex items-center justify-center font-bold text-xs">1</span>
-            <span className="font-medium text-[#10512D]">Detalhes</span>
-            <svg className="w-4 h-4 text-[#CCC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-            <span className="w-6 h-6 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-bold text-xs">2</span>
-            <span>Informações Gerais</span>
-          </div>
-        </div>
+        )}
 
-        <div className="border border-[#CCC] rounded-lg mt-1 bg-white px-4 sm:px-8 lg:px-[50px] py-8 lg:py-10">
-          {error && (
-            <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-              {error}
-            </div>
-          )}
-
-          {/* Title */}
-          <div className="mb-8">
-            <label className="block font-ubuntu text-[20px] text-[#5A5858] mb-2">
-              Título do Projeto *
-            </label>
+        <div className="space-y-6">
+          <FormField label="Título do projeto" required>
             <input
               type="text"
               required
@@ -196,115 +197,120 @@ export default function NovoProjeto() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Informe o título do seu projeto"
-              className="w-full border border-[#CCC] rounded h-[49px] px-3 font-ubuntu text-base text-[#5A5858] placeholder:text-[#5A5858]/60 bg-white focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D]"
+              className={cn(fieldClass, "h-12")}
             />
-          </div>
+          </FormField>
 
-          <h2 className="font-ubuntu font-bold text-2xl sm:text-[32px] text-black mb-8">
-            Detalhes Específicos
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-            {/* Proposal type */}
-            <div>
-              <label className="block font-ubuntu text-[20px] text-[#5A5858] mb-2">
-                Tipo de Proposta
-              </label>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <FormField label="Tipo de proposta">
               <select
                 value={proposalType}
                 onChange={(e) => setProposalType(e.target.value)}
-                className="w-full border border-[#CCC] rounded h-[38px] px-3 font-ubuntu text-base text-[#5A5858] bg-white focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D]"
+                className={cn(fieldClass, "h-12")}
               >
                 <option value="">Selecione o tipo</option>
                 {PROPOSAL_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
                 ))}
               </select>
-            </div>
+            </FormField>
 
-            {/* Target audience */}
-            <div>
-              <label className="block font-ubuntu text-[20px] text-[#5A5858] mb-2">
-                Público-Alvo
-              </label>
-              <input
-                type="text"
-                maxLength={200}
-                placeholder="Ex: crianças, idosos, comunidade local"
-                value={targetAudience}
-                onChange={(e) => setTargetAudience(e.target.value)}
-                className="w-full border border-[#CCC] rounded h-[39px] px-3 font-ubuntu text-base text-[#5A5858] placeholder:text-[#5A5858]/60 bg-white focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D]"
-              />
-            </div>
-
-            {/* Duration */}
-            <div>
-              <label className="block font-ubuntu text-[20px] text-[#5A5858] mb-2">
-                Duração Prevista
-              </label>
+            <FormField label="Duração prevista">
               <input
                 type="text"
                 maxLength={100}
                 placeholder="Ex: 6 meses, 1 semestre"
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
-                className="w-full border border-[#CCC] rounded h-[39px] px-3 font-ubuntu text-base text-[#5A5858] placeholder:text-[#5A5858]/60 bg-white focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D]"
+                className={cn(fieldClass, "h-12")}
               />
-            </div>
+            </FormField>
           </div>
 
-          {/* Documents */}
-          <h2 className="font-ubuntu font-medium text-2xl sm:text-[32px] text-black mt-12 mb-2">
-            Documentos
-          </h2>
-          <p className="text-sm text-[#5A5858] mb-6">
-            Faça upload de até 2 documentos (PDF, DOC, DOCX — máx. 25MB cada)
+          <FormField label="Público-alvo">
+            <input
+              type="text"
+              maxLength={200}
+              placeholder="Ex: crianças, idosos, comunidade local"
+              value={targetAudience}
+              onChange={(e) => setTargetAudience(e.target.value)}
+              className={cn(fieldClass, "h-12")}
+            />
+          </FormField>
+        </div>
+
+        <div className="mt-10">
+          <h2 className="text-lg font-semibold text-[#10231A]">Documentos</h2>
+          <p className="mt-1 text-sm text-[#6B6868]">
+            Até 2 arquivos (PDF, DOC ou DOCX, máx. 25MB cada).
           </p>
 
           {fileErrors.length > 0 && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm space-y-1">
-              {fileErrors.map((e, i) => <p key={i}>{e}</p>)}
-            </div>
-          )}
-
-          {/* Uploaded files list */}
-          {files.length > 0 && (
-            <div className="mb-4 space-y-2">
-              {files.map((f, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded">
-                  <svg className="w-5 h-5 text-green-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <span className="flex-1 text-sm font-ubuntu text-[#5A5858] truncate">{f.name}</span>
-                  <span className="text-xs text-[#999]">{(f.size / 1024 / 1024).toFixed(1)}MB</span>
-                  <button
-                    type="button"
-                    onClick={() => removeFile(i)}
-                    className="text-red-500 hover:text-red-700 text-sm font-bold ml-2"
-                    aria-label="Remover arquivo"
-                  >
-                    ×
-                  </button>
-                </div>
+            <div
+              role="alert"
+              className="mt-4 space-y-1 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+            >
+              {fileErrors.map((e, i) => (
+                <p key={i}>{e}</p>
               ))}
             </div>
           )}
 
-          {/* Drop zone */}
+          {files.length > 0 && (
+            <ul className="mt-4 space-y-2">
+              {files.map((f, i) => (
+                <li
+                  key={`${f.name}-${i}`}
+                  className="flex items-center gap-3 rounded-xl bg-[#10512D]/5 p-3"
+                >
+                  <FileText
+                    className="h-5 w-5 shrink-0 text-[#10512D]"
+                    aria-hidden
+                  />
+                  <span className="min-w-0 flex-1 truncate text-sm text-[#2B2A2A]">
+                    {f.name}
+                  </span>
+                  <span className="text-xs text-[#8A8888]">
+                    {(f.size / 1024 / 1024).toFixed(1)} MB
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(i)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-red-600/80 transition-colors hover:bg-red-50 hover:text-red-600"
+                    aria-label={`Remover ${f.name}`}
+                  >
+                    <X className="h-4 w-4" aria-hidden />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
           {files.length < 2 && (
             <div
               role="button"
               tabIndex={0}
-              onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  fileInputRef.current?.click();
+                }
+              }}
               onClick={() => fileInputRef.current?.click()}
-              onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDrag(true);
+              }}
               onDragLeave={() => setDrag(false)}
               onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-lg flex flex-col items-center justify-center gap-4 py-12 px-6 cursor-pointer select-none transition-colors ${
+              className={cn(
+                "mt-4 flex cursor-pointer select-none flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-10 text-center outline-none transition-colors focus-visible:ring-4 focus-visible:ring-[#10512D]/15",
                 drag
-                  ? "border-[#10512D] bg-green-50"
-                  : "border-[#CCC] bg-white hover:bg-gray-50"
-              }`}
+                  ? "border-[#10512D] bg-[#10512D]/5"
+                  : "border-black/15 bg-white/60 hover:bg-[#10512D]/[0.03]",
+              )}
             >
               <input
                 ref={fileInputRef}
@@ -317,57 +323,43 @@ export default function NovoProjeto() {
                   e.target.value = "";
                 }}
               />
-              <svg className="w-12 h-12 text-[#CCC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              <p className="font-ubuntu text-[20px] text-[#5A5858] text-center">
-                Clique para selecionar ou arraste arquivos aqui
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#10512D]/10 text-[#10512D]">
+                <UploadCloud className="h-6 w-6" aria-hidden />
+              </span>
+              <p className="text-base text-[#3D3B3B]">
+                Clique para selecionar ou arraste os arquivos aqui
               </p>
-              <p className="font-ubuntu text-sm text-[#5A5858]/60">
-                PDF, DOC, DOCX — máx. 25MB — até {2 - files.length} arquivo(s)
+              <p className="text-sm text-[#8A8888]">
+                Ainda cabem {2 - files.length}{" "}
+                {2 - files.length === 1 ? "arquivo" : "arquivos"}
               </p>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
-                className="border border-[#CCC] bg-white rounded h-10 px-6 font-ubuntu text-base text-[#5A5858] hover:bg-gray-100 transition-colors"
-              >
-                Selecionar Arquivo
-              </button>
             </div>
           )}
-
-          {/* Action buttons */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 mt-10">
-            <Link
-              to="/meus-projetos"
-              className="flex items-center justify-center border border-[#CCC] bg-white rounded h-[43px] min-w-[180px] font-ubuntu text-[18px] text-black hover:bg-gray-50 transition-colors px-6"
-            >
-              Cancelar
-            </Link>
-            <button
-              type="button"
-              onClick={() => handleSave("meus-projetos")}
-              disabled={loading}
-              className="border border-[#CCC] bg-white rounded h-[43px] min-w-[200px] font-ubuntu text-[18px] text-black hover:bg-gray-50 disabled:opacity-60 transition-colors px-6"
-            >
-              {loading ? "Salvando..." : "Salvar Rascunho"}
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSave("informacoes-gerais")}
-              disabled={loading}
-              className="flex items-center justify-center bg-[#008000] rounded h-[43px] min-w-[260px] font-ubuntu text-[18px] text-white hover:bg-green-800 disabled:opacity-60 transition-colors px-6 gap-2"
-            >
-              {loading ? "Salvando..." : "Próximo: Informações Gerais"}
-              {!loading && (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              )}
-            </button>
-          </div>
         </div>
-      </main>
-    </div>
+
+        <div className="mt-10 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <Link to="/meus-projetos" className={secondaryButton}>
+            Cancelar
+          </Link>
+          <button
+            type="button"
+            onClick={() => handleSave("meus-projetos")}
+            disabled={loading}
+            className={secondaryButton}
+          >
+            {loading ? "Salvando..." : "Salvar rascunho"}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSave("informacoes-gerais")}
+            disabled={loading}
+            className={primaryButton}
+          >
+            {loading ? "Salvando..." : "Próximo passo"}
+            {!loading && <ArrowRight className="h-4 w-4" aria-hidden />}
+          </button>
+        </div>
+      </m.div>
+    </PageShell>
   );
 }

@@ -1,8 +1,23 @@
-import { useState, FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { LazyMotion, MotionConfig, domAnimation, m } from "motion/react";
+import {
+  ClipboardCheck,
+  MessageSquareText,
+  Send,
+  ShieldCheck,
+} from "lucide-react";
+import { fieldClass, primaryButton } from "@/components/layout/PageShell";
+import { FormField } from "@/components/FormField";
 import { useAuth } from "@/contexts/AuthContext";
 import { ApiError } from "@/lib/api";
-import { ROLE_EMAIL_DOMAINS, emailMatchesRole, type UserRole } from "@shared/api";
+import { cn } from "@/lib/utils";
+import { EASE, fadeUp } from "@/lib/motion";
+import {
+  ROLE_EMAIL_DOMAINS,
+  emailMatchesRole,
+  type UserRole,
+} from "@shared/api";
 
 const LOGO_URL = "/logo-sisapa.png";
 
@@ -11,13 +26,79 @@ const DEMO_EMAILS: Record<UserRole, string> = {
   professor: "ana.costa@ifms.edu.br",
 };
 
+const HIGHLIGHTS = [
+  {
+    icon: Send,
+    title: "Submissão",
+    desc: "Envie projetos acadêmicos com facilidade",
+  },
+  {
+    icon: ClipboardCheck,
+    title: "Avaliação",
+    desc: "Acompanhe o status em tempo real",
+  },
+  {
+    icon: MessageSquareText,
+    title: "Transparência",
+    desc: "Feedback detalhado dos professores",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Segurança",
+    desc: "Autenticação integrada e protegida",
+  },
+] as const;
+
 type Tab = "entrar" | "cadastrar";
+
+function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+  label,
+}: {
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (value: T) => void;
+  label: string;
+}) {
+  return (
+    <div
+      className="flex rounded-full border border-black/10 bg-white/80 p-1"
+      role="tablist"
+      aria-label={label}
+    >
+      {options.map((option) => {
+        const active = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(option.value)}
+            className={cn(
+              "h-9 flex-1 rounded-full text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#10512D]/15",
+              active
+                ? "bg-[#10512D] text-white"
+                : "text-[#4A4848] hover:text-[#10512D]",
+            )}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function Login() {
   const { login, register } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as any)?.from?.pathname || null;
+  const from =
+    (location.state as { from?: { pathname?: string } } | null)?.from
+      ?.pathname || null;
 
   const [tab, setTab] = useState<Tab>("entrar");
   const [role, setRole] = useState<UserRole>("aluno");
@@ -45,7 +126,8 @@ export default function Login() {
     setLoading(true);
     try {
       await login(loginEmail.trim(), loginPassword);
-      const redirect = from || (role === "professor" ? "/avaliador" : "/meus-projetos");
+      const redirect =
+        from || (role === "professor" ? "/avaliador" : "/meus-projetos");
       navigate(redirect, { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erro ao fazer login.");
@@ -65,7 +147,7 @@ export default function Login() {
       setError(
         role === "professor"
           ? `Professores devem usar um e-mail ${ROLE_EMAIL_DOMAINS.professor}.`
-          : `Alunos devem usar um e-mail ${ROLE_EMAIL_DOMAINS.aluno}.`
+          : `Alunos devem usar um e-mail ${ROLE_EMAIL_DOMAINS.aluno}.`,
       );
       return;
     }
@@ -82,7 +164,9 @@ export default function Login() {
         siape: regSiape || undefined,
         departamento: regDepartamento || undefined,
       });
-      navigate(role === "professor" ? "/avaliador" : "/meus-projetos", { replace: true });
+      navigate(role === "professor" ? "/avaliador" : "/meus-projetos", {
+        replace: true,
+      });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erro ao cadastrar.");
     } finally {
@@ -90,210 +174,286 @@ export default function Login() {
     }
   }
 
+  const input = cn(fieldClass, "h-11");
+
   return (
-    <div className="min-h-screen flex font-ubuntu">
-      {/* ── Left panel ── */}
-      <div className="hidden lg:flex flex-col justify-between w-1/2 bg-[#10512D] text-white p-12">
-        <div className="flex items-center gap-3">
-          <img src={LOGO_URL} alt="SISAPA" className="w-14 h-14 object-contain brightness-0 invert" />
-          <span className="font-bold text-2xl">SISAPA</span>
-        </div>
-        <div>
-          <h1 className="text-4xl font-bold leading-tight mb-4">
-            Sistema Integrado de Submissão e Avaliação de Projetos Acadêmicos
-          </h1>
-          <p className="text-green-200 text-lg">Instituto Federal de Mato Grosso do Sul — IFMS</p>
-        </div>
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          {[
-            ["Submissão", "Envie projetos acadêmicos com facilidade"],
-            ["Avaliação", "Acompanhe o status em tempo real"],
-            ["Transparência", "Feedback detalhado dos professores"],
-            ["Segurança", "Autenticação integrada e protegida"],
-          ].map(([title, desc]) => (
-            <div key={title} className="bg-white/10 rounded-lg p-3">
-              <p className="font-semibold">{title}</p>
-              <p className="text-green-200 mt-1">{desc}</p>
+    <LazyMotion features={domAnimation} strict>
+      <MotionConfig reducedMotion="user">
+        <div className="flex min-h-screen font-ubuntu">
+          <aside className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-[#0C3F23] p-12 text-white lg:flex">
+            <div className="pointer-events-none absolute inset-0" aria-hidden>
+              <div className="absolute -left-[20%] -top-[20%] h-[60vmax] w-[60vmax] animate-blob-drift motion-reduce:animate-none bg-[radial-gradient(closest-side,rgb(120_190_90/0.35),transparent)]" />
+              <div className="absolute -bottom-[30%] -right-[20%] h-[55vmax] w-[55vmax] animate-blob-drift motion-reduce:animate-none bg-[radial-gradient(closest-side,rgb(255_255_255/0.12),transparent)] [animation-delay:-14s]" />
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* ── Right panel ── */}
-      <div className="flex-1 flex items-center justify-center bg-white p-6 sm:p-12">
-        <div className="w-full max-w-md">
-          {/* Mobile logo */}
-          <div className="flex lg:hidden items-center gap-3 mb-8">
-            <img src={LOGO_URL} alt="SISAPA" className="w-10 h-10 object-contain" />
-            <span className="text-[#10512D] font-bold text-2xl">SISAPA</span>
-          </div>
+            <m.div className="relative flex items-center gap-3" {...fadeUp()}>
+              <img
+                src={LOGO_URL}
+                alt=""
+                className="h-14 w-14 object-contain brightness-0 invert"
+              />
+              <span className="text-2xl font-bold">SISAPA</span>
+            </m.div>
 
-          <h2 className="text-2xl font-bold text-black mb-1">
-            {tab === "entrar" ? "Bem-vindo de volta" : "Criar conta"}
-          </h2>
-          <p className="text-[#5A5858] mb-6 text-sm">
-            {tab === "entrar"
-              ? "Entre com suas credenciais para acessar o sistema."
-              : "Preencha os dados para criar sua conta no SISAPA."}
-          </p>
+            <m.div className="relative" {...fadeUp(0.1)}>
+              <h1 className="text-balance text-4xl font-bold leading-tight tracking-tight xl:text-5xl">
+                Sistema Integrado de Submissão e Avaliação de Projetos
+                Acadêmicos
+              </h1>
+              <p className="mt-4 text-lg text-green-100/80">
+                Instituto Federal de Mato Grosso do Sul — IFMS
+              </p>
+            </m.div>
 
-          {/* Tabs */}
-          <div className="flex rounded-lg border border-[#CCC] overflow-hidden mb-5">
-            {(["entrar", "cadastrar"] as Tab[]).map((t) => (
-              <button
-                key={t}
-                onClick={() => { setTab(t); setError(""); }}
-                className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
-                  tab === t ? "bg-[#10512D] text-white" : "bg-white text-[#5A5858] hover:bg-gray-50"
-                }`}
-              >
-                {t === "entrar" ? "Entrar" : "Cadastrar"}
-              </button>
-            ))}
-          </div>
-
-          {/* Role selector */}
-          <div className="flex rounded-lg border border-[#CCC] overflow-hidden mb-5">
-            {(["aluno", "professor"] as UserRole[]).map((r) => (
-              <button
-                key={r}
-                onClick={() => setRole(r)}
-                className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                  role === r ? "bg-[#008000] text-white" : "bg-white text-[#5A5858] hover:bg-gray-50"
-                }`}
-              >
-                {r === "aluno" ? "Aluno" : "Professor"}
-              </button>
-            ))}
-          </div>
-
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              {error}
-            </div>
-          )}
-
-          {/* ── Login Form ── */}
-          {tab === "entrar" && (
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-[#5A5858] mb-1">E-mail</label>
-                <input
-                  type="email"
-                  required
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder={`seunome${ROLE_EMAIL_DOMAINS[role]}`}
-                  className="w-full border border-[#CCC] rounded-lg h-10 px-3 text-sm text-[#333] focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#5A5858] mb-1">Senha</label>
-                <input
-                  type="password"
-                  required
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder="Sua senha"
-                  className="w-full border border-[#CCC] rounded-lg h-10 px-3 text-sm text-[#333] focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D]"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-[#10512D] text-white rounded-lg h-10 font-semibold text-sm hover:bg-[#0d4325] transition-colors disabled:opacity-60"
-              >
-                {loading ? "Entrando..." : "Entrar"}
-              </button>
-              <p className="text-center text-xs text-[#999]">
-                Demo: clique em{" "}
-                <button
-                  type="button"
-                  className="text-[#10512D] hover:underline"
-                  onClick={() => {
-                    setLoginEmail(DEMO_EMAILS[role]);
-                    setLoginPassword("senha123");
+            <ul className="relative grid grid-cols-2 gap-3 text-sm">
+              {HIGHLIGHTS.map(({ icon: Icon, title, desc }, i) => (
+                <m.li
+                  key={title}
+                  className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-md"
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.6,
+                    ease: EASE,
+                    delay: 0.2 + i * 0.08,
                   }}
                 >
-                  preencher dados de demo
-                </button>
+                  <Icon className="h-5 w-5 text-green-200" aria-hidden />
+                  <p className="mt-3 font-semibold">{title}</p>
+                  <p className="mt-1 text-green-100/75">{desc}</p>
+                </m.li>
+              ))}
+            </ul>
+          </aside>
+
+          <main className="flex flex-1 items-center justify-center bg-[#F6F8F6] p-6 sm:p-12">
+            <m.div className="w-full max-w-md" {...fadeUp(0.05)}>
+              <div className="mb-8 flex items-center gap-3 lg:hidden">
+                <img
+                  src={LOGO_URL}
+                  alt=""
+                  className="h-10 w-10 object-contain"
+                />
+                <span className="text-2xl font-bold text-[#10512D]">
+                  SISAPA
+                </span>
+              </div>
+
+              <h2 className="text-2xl font-bold tracking-tight text-[#10231A] sm:text-3xl">
+                {tab === "entrar" ? "Bem-vindo de volta" : "Criar conta"}
+              </h2>
+              <p className="mb-6 mt-1 text-sm text-[#5A5858]">
+                {tab === "entrar"
+                  ? "Entre com suas credenciais para acessar o sistema."
+                  : "Preencha os dados para criar sua conta no SISAPA."}
               </p>
-            </form>
-          )}
 
-          {/* ── Register Form ── */}
-          {tab === "cadastrar" && (
-            <form onSubmit={handleRegister} className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-[#5A5858] mb-1">Nome completo *</label>
-                <input type="text" required value={regName} onChange={(e) => setRegName(e.target.value)}
-                  placeholder="Seu nome" className="w-full border border-[#CCC] rounded-lg h-10 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D]" />
+              <div className="mb-3">
+                <Segmented<Tab>
+                  label="Ação"
+                  value={tab}
+                  onChange={(value) => {
+                    setTab(value);
+                    setError("");
+                  }}
+                  options={[
+                    { value: "entrar", label: "Entrar" },
+                    { value: "cadastrar", label: "Cadastrar" },
+                  ]}
+                />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-[#5A5858] mb-1">E-mail *</label>
-                <input type="email" required value={regEmail} onChange={(e) => setRegEmail(e.target.value)}
-                  placeholder={`seunome${ROLE_EMAIL_DOMAINS[role]}`} aria-describedby="reg-email-hint" className="w-full border border-[#CCC] rounded-lg h-10 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D]" />
-                <p id="reg-email-hint" className="text-xs text-[#999] mt-1">
-                  Use seu e-mail institucional {ROLE_EMAIL_DOMAINS[role]}
-                </p>
+              <div className="mb-6">
+                <Segmented<UserRole>
+                  label="Perfil"
+                  value={role}
+                  onChange={setRole}
+                  options={[
+                    { value: "aluno", label: "Aluno" },
+                    { value: "professor", label: "Professor" },
+                  ]}
+                />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-[#5A5858] mb-1">CPF</label>
-                <input type="text" value={regCpf} onChange={(e) => setRegCpf(e.target.value)}
-                  placeholder="Apenas dígitos" maxLength={14} className="w-full border border-[#CCC] rounded-lg h-10 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D]" />
-              </div>
-              {role === "aluno" && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-[#5A5858] mb-1">Matrícula</label>
-                    <input type="text" value={regMatricula} onChange={(e) => setRegMatricula(e.target.value)}
-                      placeholder="Ex: 2023001" className="w-full border border-[#CCC] rounded-lg h-10 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D]" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[#5A5858] mb-1">Curso</label>
-                    <input type="text" value={regCurso} onChange={(e) => setRegCurso(e.target.value)}
-                      placeholder="Ex: TADS" className="w-full border border-[#CCC] rounded-lg h-10 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D]" />
-                  </div>
+
+              {error && (
+                <div
+                  role="alert"
+                  className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+                >
+                  {error}
                 </div>
               )}
-              {role === "professor" && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-[#5A5858] mb-1">SIAPE</label>
-                    <input type="text" value={regSiape} onChange={(e) => setRegSiape(e.target.value)}
-                      placeholder="Número SIAPE" className="w-full border border-[#CCC] rounded-lg h-10 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D]" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[#5A5858] mb-1">Departamento</label>
-                    <input type="text" value={regDepartamento} onChange={(e) => setRegDepartamento(e.target.value)}
-                      placeholder="Ex: TI" className="w-full border border-[#CCC] rounded-lg h-10 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D]" />
-                  </div>
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-[#5A5858] mb-1">Senha *</label>
-                  <input type="password" required value={regPassword} onChange={(e) => setRegPassword(e.target.value)}
-                    placeholder="Min. 6 caracteres" className="w-full border border-[#CCC] rounded-lg h-10 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D]" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#5A5858] mb-1">Confirmar *</label>
-                  <input type="password" required value={regConfirm} onChange={(e) => setRegConfirm(e.target.value)}
-                    placeholder="Repita a senha" className="w-full border border-[#CCC] rounded-lg h-10 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#10512D]/30 focus:border-[#10512D]" />
-                </div>
-              </div>
-              <button type="submit" disabled={loading}
-                className="w-full bg-[#10512D] text-white rounded-lg h-10 font-semibold text-sm hover:bg-[#0d4325] transition-colors disabled:opacity-60 mt-2">
-                {loading ? "Cadastrando..." : "Criar conta"}
-              </button>
-            </form>
-          )}
 
-          <p className="text-center text-xs text-[#999] mt-5">
-            Ao acessar, você concorda com os termos de uso do IFMS.
-          </p>
+              {tab === "entrar" && (
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <FormField label="E-mail">
+                    <input
+                      type="email"
+                      required
+                      autoComplete="username"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      placeholder={`seunome${ROLE_EMAIL_DOMAINS[role]}`}
+                      className={input}
+                    />
+                  </FormField>
+                  <FormField label="Senha">
+                    <input
+                      type="password"
+                      required
+                      autoComplete="current-password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="Sua senha"
+                      className={input}
+                    />
+                  </FormField>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className={cn(primaryButton, "w-full")}
+                  >
+                    {loading ? "Entrando..." : "Entrar"}
+                  </button>
+                  <p className="text-center text-xs text-[#8A8888]">
+                    Demo:{" "}
+                    <button
+                      type="button"
+                      className="font-medium text-[#10512D] underline-offset-4 hover:underline"
+                      onClick={() => {
+                        setLoginEmail(DEMO_EMAILS[role]);
+                        setLoginPassword("senha123");
+                      }}
+                    >
+                      preencher dados de demo
+                    </button>
+                  </p>
+                </form>
+              )}
+
+              {tab === "cadastrar" && (
+                <form onSubmit={handleRegister} className="space-y-4">
+                  <FormField label="Nome completo" required>
+                    <input
+                      type="text"
+                      required
+                      autoComplete="name"
+                      value={regName}
+                      onChange={(e) => setRegName(e.target.value)}
+                      placeholder="Seu nome"
+                      className={input}
+                    />
+                  </FormField>
+                  <FormField
+                    label="E-mail"
+                    required
+                    hint={`use seu e-mail institucional ${ROLE_EMAIL_DOMAINS[role]}`}
+                  >
+                    <input
+                      type="email"
+                      required
+                      autoComplete="email"
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      placeholder={`seunome${ROLE_EMAIL_DOMAINS[role]}`}
+                      className={input}
+                    />
+                  </FormField>
+                  <FormField label="CPF">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={regCpf}
+                      onChange={(e) => setRegCpf(e.target.value)}
+                      placeholder="Apenas dígitos"
+                      maxLength={14}
+                      className={input}
+                    />
+                  </FormField>
+                  {role === "aluno" && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField label="Matrícula">
+                        <input
+                          type="text"
+                          value={regMatricula}
+                          onChange={(e) => setRegMatricula(e.target.value)}
+                          placeholder="Ex: 2023001"
+                          className={input}
+                        />
+                      </FormField>
+                      <FormField label="Curso">
+                        <input
+                          type="text"
+                          value={regCurso}
+                          onChange={(e) => setRegCurso(e.target.value)}
+                          placeholder="Ex: TADS"
+                          className={input}
+                        />
+                      </FormField>
+                    </div>
+                  )}
+                  {role === "professor" && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField label="SIAPE">
+                        <input
+                          type="text"
+                          value={regSiape}
+                          onChange={(e) => setRegSiape(e.target.value)}
+                          placeholder="Número SIAPE"
+                          className={input}
+                        />
+                      </FormField>
+                      <FormField label="Departamento">
+                        <input
+                          type="text"
+                          value={regDepartamento}
+                          onChange={(e) => setRegDepartamento(e.target.value)}
+                          placeholder="Ex: TI"
+                          className={input}
+                        />
+                      </FormField>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField label="Senha" required>
+                      <input
+                        type="password"
+                        required
+                        autoComplete="new-password"
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        placeholder="Mín. 6 caracteres"
+                        className={input}
+                      />
+                    </FormField>
+                    <FormField label="Confirmar" required>
+                      <input
+                        type="password"
+                        required
+                        autoComplete="new-password"
+                        value={regConfirm}
+                        onChange={(e) => setRegConfirm(e.target.value)}
+                        placeholder="Repita a senha"
+                        className={input}
+                      />
+                    </FormField>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className={cn(primaryButton, "mt-2 w-full")}
+                  >
+                    {loading ? "Cadastrando..." : "Criar conta"}
+                  </button>
+                </form>
+              )}
+
+              <p className="mt-6 text-center text-xs text-[#8A8888]">
+                Ao acessar, você concorda com os termos de uso do IFMS.
+              </p>
+            </m.div>
+          </main>
         </div>
-      </div>
-    </div>
+      </MotionConfig>
+    </LazyMotion>
   );
 }
