@@ -69,7 +69,7 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     const parse = meetingRequestSchema.safeParse(req.body ?? {});
     if (!parse.success) {
-      res.status(400).json({ error: parse.error.errors[0].message });
+      res.status(400).json({ error: parse.error.issues[0].message });
       return;
     }
 

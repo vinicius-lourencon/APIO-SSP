@@ -188,6 +188,9 @@ describe("ciclo completo: submissão → ajustes → reenvio → reavaliação",
     expect(evaluation.status).toBe(201);
 
     expect((await api("PUT", `/projetos/${projectId}`, { token: student, body: { schedule: "Novo cronograma" } })).status).toBe(200);
+    const afterEdit = (await api("GET", `/projetos/${projectId}`, { token: student })).data;
+    expect(afterEdit.schedule).toBe("Novo cronograma");
+    expect(afterEdit.description).not.toBe("");
     expect((await api("POST", `/projetos/${projectId}/submit`, { token: student })).status).toBe(200);
 
     const project = (await api("GET", `/projetos/${projectId}`, { token: professor })).data;
