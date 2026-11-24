@@ -11,7 +11,13 @@ import {
   Send,
   Trash2,
 } from "lucide-react";
-import { PageHeading, PageShell } from "@/components/layout/PageShell";
+import {
+  PageHeading,
+  PageShell,
+  primaryButton,
+} from "@/components/layout/PageShell";
+import { EmptyState, ErrorState, ListSkeleton } from "@/components/PageStates";
+import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { getProjects, deleteProject, submitProject } from "@/lib/api";
@@ -19,12 +25,7 @@ import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { EASE } from "@/lib/motion";
 import type { Project, ProjectStatus } from "@shared/api";
-import {
-  STATUS_LABELS,
-  STATUS_COLORS,
-  firstName,
-  professorLabel,
-} from "@shared/api";
+import { STATUS_LABELS, firstName, professorLabel } from "@shared/api";
 
 const STATUS_ORDER: ProjectStatus[] = [
   "rascunho",
@@ -34,22 +35,6 @@ const STATUS_ORDER: ProjectStatus[] = [
   "aprovado",
   "reprovado",
 ];
-
-function ProjectSkeleton() {
-  return (
-    <div
-      className="animate-pulse rounded-2xl border border-black/5 bg-white/90 p-6"
-      aria-hidden
-    >
-      <div className="flex items-center justify-between gap-4">
-        <div className="h-5 w-1/2 rounded-full bg-black/5" />
-        <div className="h-6 w-20 rounded-full bg-black/5" />
-      </div>
-      <div className="mt-4 h-3 w-1/3 rounded-full bg-black/5" />
-      <div className="mt-6 h-2 w-full rounded-full bg-black/5" />
-    </div>
-  );
-}
 
 export default function MyProjects() {
   const confirm = useConfirm();
@@ -238,44 +223,21 @@ export default function MyProjects() {
 
       <section className="mt-6" aria-live="polite">
         {loading ? (
-          <div className="space-y-4">
-            <ProjectSkeleton />
-            <ProjectSkeleton />
-            <ProjectSkeleton />
-          </div>
+          <ListSkeleton />
         ) : error ? (
-          <div className="flex flex-col items-center gap-4 rounded-3xl border border-black/5 bg-white/90 px-6 py-16 text-center">
-            <p role="alert" className="text-red-600">
-              {error}
-            </p>
-            <button
-              onClick={retry}
-              className="h-11 rounded-full bg-[#10512D] px-6 text-sm font-medium text-white transition-colors hover:bg-[#0c3f23]"
-            >
-              Tentar novamente
-            </button>
-          </div>
+          <ErrorState message={error} onRetry={retry} />
         ) : !hasProjects ? (
-          <div className="flex flex-col items-center gap-4 rounded-3xl border border-black/5 bg-white/90 px-6 py-20 text-center">
-            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#10512D]/10 text-[#10512D]">
-              <FolderPlus className="h-7 w-7" aria-hidden />
-            </span>
-            <div>
-              <p className="text-xl font-semibold text-[#10231A]">
-                Seu primeiro projeto começa aqui
-              </p>
-              <p className="mt-1 text-[#5A5858]">
-                Crie uma proposta e envie para avaliação quando estiver pronta.
-              </p>
-            </div>
-            <Link
-              to="/novo-projeto"
-              className="mt-2 inline-flex h-11 items-center gap-2 rounded-full bg-[#10512D] px-6 text-sm font-medium text-white shadow-[0_10px_24px_-12px_rgb(16_81_45/0.7)] transition-colors hover:bg-[#0c3f23]"
-            >
-              Criar projeto
-              <ArrowRight className="h-4 w-4" aria-hidden />
-            </Link>
-          </div>
+          <EmptyState
+            icon={FolderPlus}
+            title="Seu primeiro projeto começa aqui"
+            description="Crie uma proposta e envie para avaliação quando estiver pronta."
+            action={
+              <Link to="/novo-projeto" className={primaryButton}>
+                Criar projeto
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </Link>
+            }
+          />
         ) : visible.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-3xl border border-black/5 bg-white/90 px-6 py-14 text-center">
             <p className="text-lg font-semibold text-[#10231A]">
@@ -293,7 +255,6 @@ export default function MyProjects() {
         ) : (
           <ul className="space-y-4">
             {visible.map((project, index) => {
-              const statusStyle = STATUS_COLORS[project.status];
               const canEdit =
                 project.status === "rascunho" ||
                 project.status === "ajustes_solicitados";
@@ -339,15 +300,7 @@ export default function MyProjects() {
                         ))}
                       </p>
                     </div>
-                    <span
-                      className={cn(
-                        "inline-flex w-fit shrink-0 items-center rounded-full px-3 py-1 text-xs font-medium",
-                        statusStyle.bg,
-                        statusStyle.text,
-                      )}
-                    >
-                      {STATUS_LABELS[project.status]}
-                    </span>
+                    <StatusBadge status={project.status} />
                   </div>
 
                   {project.progress > 0 && (
