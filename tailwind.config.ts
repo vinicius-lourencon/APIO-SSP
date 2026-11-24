@@ -3,7 +3,7 @@ import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
-  content: ["./client/**/*.{ts,tsx}"],
+  content: ["./client/**/*.{ts,tsx}", "./shared/**/*.ts"],
   prefix: "",
   theme: {
     container: {
@@ -72,6 +72,10 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       keyframes: {
+        "blob-drift": {
+          from: { transform: "translate3d(0, 0, 0) scale(1)" },
+          to: { transform: "translate3d(4%, 6%, 0) scale(1.08)" },
+        },
         "accordion-down": {
           from: {
             height: "0",
@@ -92,6 +96,7 @@ export default {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "blob-drift": "blob-drift 32s ease-in-out infinite alternate",
       },
     },
   },

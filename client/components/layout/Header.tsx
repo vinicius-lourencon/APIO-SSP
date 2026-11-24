@@ -2,10 +2,29 @@ import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { getNotifications, markAllNotificationsRead } from "@/lib/api";
+import { ClipboardCheck, FolderKanban, Plus, type LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Notification } from "@shared/api";
 import { firstName } from "@shared/api";
 
 const LOGO_URL = "/logo-sisapa.png";
+
+function NavItem({ to, active, icon: Icon, label }: { to: string; active: boolean; icon: LucideIcon; label: string }) {
+  return (
+    <Link
+      to={to}
+      aria-label={label}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "inline-flex h-10 items-center gap-2 rounded-full px-3 font-ubuntu text-sm font-medium transition-colors sm:px-4",
+        active ? "bg-[#10512D]/10 text-[#10512D]" : "text-[#5A5858] hover:bg-black/5",
+      )}
+    >
+      <Icon className="h-[18px] w-[18px]" aria-hidden />
+      <span className="hidden sm:inline">{label}</span>
+    </Link>
+  );
+}
 
 const notifTypeBg: Record<string, string> = {
   success: "bg-green-50 border-l-4 border-green-500",
@@ -74,41 +93,27 @@ export default function Header() {
   const isProfessor = user?.role === "professor";
 
   return (
-    <header className="bg-white border-b border-[#CCC] sticky top-0 z-20">
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-[53px] h-[72px] flex items-center justify-between gap-4">
-        {/* Brand */}
-        <div className="flex items-center gap-3 shrink-0">
-          <img src={LOGO_URL} alt="SISAPA logo" className="w-10 h-10 object-contain" />
-          <span className="text-[#10512D] font-ubuntu font-bold text-xl leading-none">SISAPA</span>
-        </div>
+    <header className="border-b border-black/5 bg-white">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-[53px] h-[72px] flex items-center justify-between gap-3">
+        <Link to={isProfessor ? "/avaliador" : "/meus-projetos"} className="flex items-center gap-3 shrink-0" aria-label="SISAPA, página inicial">
+          <img src={LOGO_URL} alt="" className="w-10 h-10 object-contain" />
+          <span className="hidden min-[400px]:block text-[#10512D] font-ubuntu font-bold text-xl leading-none">SISAPA</span>
+        </Link>
 
-        {/* Nav */}
-        <nav className="hidden md:flex items-center gap-6">
+        <nav className="flex items-center gap-1" aria-label="Principal">
           {isStudent && (
             <>
-              <Link
+              <NavItem
                 to="/meus-projetos"
-                className={`font-ubuntu text-sm transition-colors ${
-                  location.pathname.startsWith("/meus-projetos") || location.pathname === "/novo-projeto"
-                    ? "text-[#10512D] font-semibold"
-                    : "text-[#5A5858] hover:text-[#10512D]"
-                }`}
-              >
-                Área do Estudante
-              </Link>
+                label="Meus projetos"
+                icon={FolderKanban}
+                active={location.pathname.startsWith("/meus-projetos")}
+              />
+              <NavItem to="/novo-projeto" label="Novo projeto" icon={Plus} active={location.pathname === "/novo-projeto"} />
             </>
           )}
           {isProfessor && (
-            <Link
-              to="/avaliador"
-              className={`font-ubuntu text-sm transition-colors ${
-                location.pathname.startsWith("/avaliador")
-                  ? "text-[#10512D] font-semibold"
-                  : "text-[#5A5858] hover:text-[#10512D]"
-              }`}
-            >
-              Área do Avaliador
-            </Link>
+            <NavItem to="/avaliador" label="Avaliações" icon={ClipboardCheck} active={location.pathname.startsWith("/avaliador")} />
           )}
         </nav>
 

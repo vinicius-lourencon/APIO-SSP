@@ -1,43 +1,70 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { LazyMotion, MotionConfig, domAnimation, m } from "motion/react";
+import { ArrowRight, FolderPlus, MessageSquareText, Pencil, Search, Send, Trash2 } from "lucide-react";
 import Header from "@/components/layout/Header";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { getProjects, deleteProject, submitProject } from "@/lib/api";
 import { ApiError } from "@/lib/api";
-import type { Project } from "@shared/api";
-import { STATUS_LABELS, STATUS_COLORS, professorLabel } from "@shared/api";
+import { cn } from "@/lib/utils";
+import type { Project, ProjectStatus } from "@shared/api";
+import { STATUS_LABELS, STATUS_COLORS, firstName, professorLabel } from "@shared/api";
+
+const EASE = [0.22, 1, 0.36, 1] as const;
+
+const STATUS_ORDER: ProjectStatus[] = [
+  "rascunho",
+  "submetido",
+  "em_analise",
+  "ajustes_solicitados",
+  "aprovado",
+  "reprovado",
+];
+
+function ProjectSkeleton() {
+  return (
+    <div className="animate-pulse rounded-2xl border border-black/5 bg-white/90 p-6" aria-hidden>
+      <div className="flex items-center justify-between gap-4">
+        <div className="h-5 w-1/2 rounded-full bg-black/5" />
+        <div className="h-6 w-20 rounded-full bg-black/5" />
+      </div>
+      <div className="mt-4 h-3 w-1/3 rounded-full bg-black/5" />
+      <div className="mt-6 h-2 w-full rounded-full bg-black/5" />
+    </div>
+  );
+}
 
 export default function MyProjects() {
   const confirm = useConfirm();
+  const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ProjectStatus | "">("");
   const [actionLoading, setActionLoading] = useState<number | null>(null);
-  const debouncedSearch = useDebouncedValue(search.trim());
 
   const fetchProjects = useCallback(async () => {
-    setLoading(true);
     setError("");
     try {
-      const data = await getProjects({
-        status: statusFilter || undefined,
-        search: debouncedSearch || undefined,
-      });
-      setProjects(data);
+      setProjects(await getProjects());
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erro ao carregar projetos.");
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, debouncedSearch]);
+  }, []);
 
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
+
+  const retry = () => {
+    setLoading(true);
+    fetchProjects();
+  };
 
   const handleDelete = async (project: Project) => {
     const confirmed = await confirm({
@@ -94,250 +121,269 @@ export default function MyProjects() {
     }
   };
 
-  const total = projects.length;
-  const approved = projects.filter((p) => p.status === "aprovado").length;
-  const inAnalysis = projects.filter((p) =>
-    ["em_analise", "submetido"].includes(p.status)
-  ).length;
-  const adjustments = projects.filter((p) => p.status === "ajustes_solicitados").length;
-  const drafts = projects.filter((p) => p.status === "rascunho").length;
-
-  const filtered = projects.filter((p) =>
-    search ? p.title.toLowerCase().includes(search.toLowerCase()) : true
+  const countByStatus = (status: ProjectStatus) => projects.filter((p) => p.status === status).length;
+  const query = search.trim().toLowerCase();
+  const visible = projects.filter(
+    (p) => (!statusFilter || p.status === statusFilter) && (!query || p.title.toLowerCase().includes(query)),
   );
+  const hasProjects = projects.length > 0;
+  const isFiltering = Boolean(statusFilter || query);
 
-  const STATUS_FILTERS = [
-    { value: "", label: "Todos" },
-    { value: "rascunho", label: "Rascunho" },
-    { value: "submetido", label: "Submetido" },
-    { value: "em_analise", label: "Em Análise" },
-    { value: "ajustes_solicitados", label: "Ajustes" },
-    { value: "aprovado", label: "Aprovado" },
-    { value: "reprovado", label: "Reprovado" },
-  ];
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("");
+  };
 
   return (
-    <div className="min-h-screen bg-white font-ubuntu">
-      <Header />
-      <main className="max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-[53px] py-8">
-        <h1 className="font-ubuntu font-bold text-3xl sm:text-[36px] text-black">
-          Meus Projetos de Extensão
-        </h1>
-        <p className="font-ubuntu text-lg sm:text-[20px] text-[#5A5858] mt-2">
-          Gerencie seus projetos e acompanhe o status de avaliação
-        </p>
-
-        {/* Tab bar */}
-        <div className="mt-8 rounded border border-[#CCC] bg-[rgba(204,204,204,0.80)] px-4 sm:px-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 min-h-[67px]">
-          <div className="flex items-center">
-            <span className="font-ubuntu text-[20px] font-semibold text-[#5A5858] px-4 py-4 sm:py-0">
-              Meus Projetos
-            </span>
-            <Link
-              to="/novo-projeto"
-              className="font-ubuntu text-[20px] text-[#5A5858]/60 px-4 py-4 sm:py-0 hover:opacity-100 transition-opacity"
-            >
-              Novo Projeto
-            </Link>
+    <LazyMotion features={domAnimation} strict>
+      <MotionConfig reducedMotion="user">
+        <div className="relative min-h-screen overflow-x-clip bg-[#F6F8F6] font-ubuntu">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-[560px] overflow-hidden [mask-image:linear-gradient(to_bottom,black_50%,transparent)]" aria-hidden>
+            <div className="absolute -left-[10%] -top-[30%] h-[70vmax] w-[70vmax] animate-blob-drift motion-reduce:animate-none bg-[radial-gradient(closest-side,rgb(16_81_45/0.13),transparent)]" />
+            <div className="absolute -right-[15%] -top-[45%] h-[60vmax] w-[60vmax] animate-blob-drift motion-reduce:animate-none bg-[radial-gradient(closest-side,rgb(120_190_90/0.14),transparent)] [animation-delay:-12s]" />
           </div>
-          <div className="border border-[#CCC] bg-white rounded flex items-center px-3 h-[49px] w-full sm:w-80 lg:w-[400px]">
-            <svg className="w-4 h-4 text-[#5A5858] opacity-50 mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="8" strokeWidth="2" />
-              <path d="M21 21l-4.35-4.35" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Buscar projeto..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full outline-none font-ubuntu text-base text-[#5A5858] placeholder:text-[#5A5858]/60 bg-transparent"
-            />
-          </div>
-        </div>
 
-        {/* Stats cards */}
-        <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          {[
-            { label: "Total", value: total, color: "text-black" },
-            { label: "Aprovados", value: approved, color: "text-green-600" },
-            { label: "Em Análise", value: inAnalysis, color: "text-yellow-600" },
-            { label: "Ajustes", value: adjustments, color: "text-orange-500" },
-            { label: "Rascunhos", value: drafts, color: "text-gray-500" },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="border border-[#CCC] rounded-lg p-4 bg-white text-center">
-              <p className="font-ubuntu text-sm text-[#5A5858] mb-1">{label}</p>
-              <p className={`font-ubuntu text-3xl font-bold ${color}`}>{value}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Status filter chips */}
-        <div className="mt-4 flex gap-2 flex-wrap">
-          {STATUS_FILTERS.map(({ value, label }) => (
-            <button
-              key={value}
-              onClick={() => setStatusFilter(value)}
-              className={`px-3 py-1 rounded-full text-sm font-ubuntu transition-colors ${
-                statusFilter === value
-                  ? "bg-[#10512D] text-white"
-                  : "bg-gray-100 text-[#5A5858] hover:bg-gray-200"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* Project list */}
-        <div className="mt-4 border border-[#CCC] rounded-lg bg-white overflow-hidden">
-          {loading ? (
-            <div className="flex items-center justify-center py-24">
-              <div className="w-8 h-8 border-4 border-[#10512D] border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center py-24 gap-4">
-              <p className="text-red-600 font-ubuntu">{error}</p>
-              <button
-                onClick={fetchProjects}
-                className="bg-[#10512D] text-white px-4 py-2 rounded font-ubuntu hover:bg-green-800"
+          <div className="relative">
+            <Header />
+            <main className="mx-auto max-w-5xl px-4 pb-24 pt-10 sm:px-8 sm:pt-14">
+              <m.div
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, ease: EASE }}
               >
-                Tentar novamente
-              </button>
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 gap-4">
-              <svg className="w-16 h-16 text-[#CCC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <p className="font-ubuntu text-xl text-[#5A5858]">Nenhum projeto encontrado.</p>
-              <Link
-                to="/novo-projeto"
-                className="mt-2 bg-[#008000] text-white font-ubuntu px-6 py-2 rounded hover:bg-green-800"
-              >
-                Criar novo projeto
-              </Link>
-            </div>
-          ) : (
-            <div className="divide-y divide-[#CCC]">
-              {filtered.map((project) => {
-                const statusStyle = STATUS_COLORS[project.status];
-                const statusLabel = STATUS_LABELS[project.status];
-                const canEdit =
-                  project.status === "rascunho" || project.status === "ajustes_solicitados";
-                const canSubmit = canEdit;
-                const canDelete = project.status === "rascunho";
-                const isActing = actionLoading === project.id;
+                <h1 className="text-3xl font-bold tracking-tight text-[#10231A] sm:text-4xl">
+                  Olá, {firstName(user?.name ?? "")}
+                </h1>
+                <p className="mt-2 text-base text-[#5A5858] sm:text-lg">Acompanhe o andamento de cada proposta.</p>
+              </m.div>
 
-                return (
-                  <div key={project.id} className="p-6 hover:bg-gray-50 transition-colors">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-ubuntu font-bold text-xl text-black truncate">
-                          {project.title}
-                        </h3>
-                        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-sm text-[#5A5858]">
-                          {project.proposal_type && (
-                            <span>{project.proposal_type}</span>
+              {hasProjects && (
+                <m.div
+                  className="mt-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, ease: EASE, delay: 0.08 }}
+                >
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por status">
+                    {[
+                      { value: "" as const, label: "Todos", count: projects.length },
+                      ...STATUS_ORDER.map((status) => ({
+                        value: status,
+                        label: STATUS_LABELS[status],
+                        count: countByStatus(status),
+                      })).filter((f) => f.count > 0 || f.value === statusFilter),
+                    ].map(({ value, label, count }) => {
+                      const active = statusFilter === value;
+                      return (
+                        <button
+                          key={value || "all"}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => setStatusFilter(value)}
+                          className={cn(
+                            "inline-flex h-9 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#10512D]/15",
+                            active
+                              ? "border-[#10512D] bg-[#10512D] text-white"
+                              : "border-black/10 bg-white/80 text-[#4A4848] hover:border-[#10512D]/40 hover:text-[#10512D]",
                           )}
-                          {project.professor_name && (
-                            <span>• {professorLabel(project.professor_name)}</span>
-                          )}
-                          <span>
-                            •{" "}
-                            {new Date(project.created_at).toLocaleDateString("pt-BR")}
+                        >
+                          {label}
+                          <span className={cn("text-xs tabular-nums", active ? "text-white/70" : "text-[#8A8888]")}>
+                            {count}
                           </span>
-                        </div>
-                      </div>
-                      <span
-                        className={`shrink-0 inline-block px-3 py-1 rounded-full text-xs font-ubuntu font-medium ${statusStyle.bg} ${statusStyle.text}`}
-                      >
-                        {statusLabel}
-                      </span>
-                    </div>
-
-                    {/* Progress bar */}
-                    <div className="mb-3">
-                      <div className="flex justify-between text-xs text-[#5A5858] mb-1">
-                        <span>Progresso da avaliação</span>
-                        <span>{project.progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-100 rounded-full h-2">
-                        <div
-                          className="bg-[#10512D] h-2 rounded-full transition-all"
-                          style={{ width: `${project.progress}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Latest feedback */}
-                    {project.latest_feedback && (
-                      <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded text-sm text-[#5A5858]">
-                        <span className="font-semibold text-amber-700">Feedback: </span>
-                        {project.latest_feedback}
-                      </div>
-                    )}
-
-                    {/* Action buttons */}
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      <Link
-                        to={`/projetos/${project.id}`}
-                        className="px-3 py-1.5 border border-[#CCC] rounded text-sm font-ubuntu text-[#5A5858] hover:bg-gray-100"
-                      >
-                        Ver detalhes
-                      </Link>
-                      {canEdit && (
-                        <Link
-                          to={`/novo-projeto?id=${project.id}`}
-                          className="px-3 py-1.5 border border-[#10512D] rounded text-sm font-ubuntu text-[#10512D] hover:bg-green-50"
-                        >
-                          Editar
-                        </Link>
-                      )}
-                      {canSubmit && (
-                        <button
-                          onClick={() => handleSubmit(project)}
-                          disabled={isActing}
-                          className="px-3 py-1.5 bg-[#008000] text-white rounded text-sm font-ubuntu hover:bg-green-800 disabled:opacity-60"
-                        >
-                          {isActing
-                            ? "Enviando..."
-                            : project.status === "ajustes_solicitados"
-                              ? "Reenviar para Avaliação"
-                              : "Enviar para Avaliação"}
                         </button>
-                      )}
-                      {canDelete && (
-                        <button
-                          onClick={() => handleDelete(project)}
-                          disabled={isActing}
-                          className="px-3 py-1.5 border border-red-200 rounded text-sm font-ubuntu text-red-600 hover:bg-red-50 disabled:opacity-60"
-                        >
-                          Excluir
-                        </button>
-                      )}
-                    </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
 
-        {/* New project CTA (only show when there are projects) */}
-        {!loading && !error && filtered.length > 0 && (
-          <div className="mt-6 flex justify-end">
-            <Link
-              to="/novo-projeto"
-              className="flex items-center gap-2 bg-[#008000] text-white font-ubuntu px-6 py-2.5 rounded hover:bg-green-800 transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Novo Projeto
-            </Link>
+                  <label className="relative block w-full md:w-72">
+                    <span className="sr-only">Buscar projeto</span>
+                    <Search
+                      className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8A8888]"
+                      aria-hidden
+                    />
+                    <input
+                      type="search"
+                      placeholder="Buscar projeto"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="h-11 w-full rounded-full border border-black/10 bg-white/90 pl-10 pr-4 text-base text-[#333] outline-none transition-shadow placeholder:text-[#8A8888] focus:border-[#10512D]/50 focus:ring-4 focus:ring-[#10512D]/10"
+                    />
+                  </label>
+                </m.div>
+              )}
+
+              <section className="mt-6" aria-live="polite">
+                {loading ? (
+                  <div className="space-y-4">
+                    <ProjectSkeleton />
+                    <ProjectSkeleton />
+                    <ProjectSkeleton />
+                  </div>
+                ) : error ? (
+                  <div className="flex flex-col items-center gap-4 rounded-3xl border border-black/5 bg-white/90 px-6 py-16 text-center">
+                    <p role="alert" className="text-red-600">
+                      {error}
+                    </p>
+                    <button
+                      onClick={retry}
+                      className="h-11 rounded-full bg-[#10512D] px-6 text-sm font-medium text-white transition-colors hover:bg-[#0c3f23]"
+                    >
+                      Tentar novamente
+                    </button>
+                  </div>
+                ) : !hasProjects ? (
+                  <div className="flex flex-col items-center gap-4 rounded-3xl border border-black/5 bg-white/90 px-6 py-20 text-center">
+                    <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#10512D]/10 text-[#10512D]">
+                      <FolderPlus className="h-7 w-7" aria-hidden />
+                    </span>
+                    <div>
+                      <p className="text-xl font-semibold text-[#10231A]">Seu primeiro projeto começa aqui</p>
+                      <p className="mt-1 text-[#5A5858]">Crie uma proposta e envie para avaliação quando estiver pronta.</p>
+                    </div>
+                    <Link
+                      to="/novo-projeto"
+                      className="mt-2 inline-flex h-11 items-center gap-2 rounded-full bg-[#10512D] px-6 text-sm font-medium text-white shadow-[0_10px_24px_-12px_rgb(16_81_45/0.7)] transition-colors hover:bg-[#0c3f23]"
+                    >
+                      Criar projeto
+                      <ArrowRight className="h-4 w-4" aria-hidden />
+                    </Link>
+                  </div>
+                ) : visible.length === 0 ? (
+                  <div className="flex flex-col items-center gap-3 rounded-3xl border border-black/5 bg-white/90 px-6 py-14 text-center">
+                    <p className="text-lg font-semibold text-[#10231A]">Nada por aqui com esse filtro</p>
+                    {isFiltering && (
+                      <button
+                        onClick={clearFilters}
+                        className="text-sm font-medium text-[#10512D] underline-offset-4 hover:underline"
+                      >
+                        Limpar filtros
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <ul className="space-y-4">
+                    {visible.map((project, index) => {
+                      const statusStyle = STATUS_COLORS[project.status];
+                      const canEdit = project.status === "rascunho" || project.status === "ajustes_solicitados";
+                      const canSubmit = canEdit;
+                      const canDelete = project.status === "rascunho";
+                      const isActing = actionLoading === project.id;
+                      const meta = [
+                        project.proposal_type,
+                        project.professor_name ? professorLabel(project.professor_name) : "",
+                        new Date(project.created_at).toLocaleDateString("pt-BR"),
+                      ].filter(Boolean);
+
+                      return (
+                        <m.li
+                          key={project.id}
+                          initial={{ opacity: 0, y: 16 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.6, ease: EASE, delay: Math.min(index, 6) * 0.06 }}
+                          className="lift rounded-2xl border border-black/5 bg-white/90 p-5 shadow-[0_1px_2px_rgb(0_0_0/0.04)] sm:p-6"
+                        >
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0 flex-1">
+                              <h2 className="text-lg font-semibold text-[#10231A] sm:truncate sm:text-xl">
+                                <Link
+                                  to={`/projetos/${project.id}`}
+                                  className="rounded-sm outline-none transition-colors hover:text-[#10512D] focus-visible:ring-4 focus-visible:ring-[#10512D]/15"
+                                >
+                                  {project.title}
+                                </Link>
+                              </h2>
+                              <p className="mt-1 flex flex-wrap gap-x-2 text-sm text-[#6B6868]">
+                                {meta.map((item, i) => (
+                                  <span key={item}>
+                                    {item}
+                                    {i < meta.length - 1 && <span aria-hidden> ·</span>}
+                                  </span>
+                                ))}
+                              </p>
+                            </div>
+                            <span
+                              className={cn(
+                                "inline-flex w-fit shrink-0 items-center rounded-full px-3 py-1 text-xs font-medium",
+                                statusStyle.bg,
+                                statusStyle.text,
+                              )}
+                            >
+                              {STATUS_LABELS[project.status]}
+                            </span>
+                          </div>
+
+                          {project.progress > 0 && (
+                            <div className="mt-5 flex items-center gap-3" role="img" aria-label={`Avaliação ${project.progress}% concluída`}>
+                              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/5">
+                                <div
+                                  className="h-full origin-left rounded-full bg-[#10512D]"
+                                  style={{ width: `${project.progress}%` }}
+                                />
+                              </div>
+                              <span className="w-9 text-right text-xs tabular-nums text-[#6B6868]">{project.progress}%</span>
+                            </div>
+                          )}
+
+                          {project.latest_feedback && (
+                            <div className="mt-4 flex gap-3 rounded-xl bg-amber-50/80 p-3 text-sm text-[#5A4A20]">
+                              <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden />
+                              <p className="line-clamp-2">{project.latest_feedback}</p>
+                            </div>
+                          )}
+
+                          <div className="mt-5 flex flex-wrap items-center gap-2">
+                            {canSubmit && (
+                              <button
+                                onClick={() => handleSubmit(project)}
+                                disabled={isActing}
+                                className="inline-flex h-10 items-center gap-2 rounded-full bg-[#10512D] px-5 text-sm font-medium text-white transition-colors hover:bg-[#0c3f23] disabled:opacity-60"
+                              >
+                                <Send className="h-4 w-4" aria-hidden />
+                                {isActing
+                                  ? "Enviando..."
+                                  : project.status === "ajustes_solicitados"
+                                    ? "Reenviar para avaliação"
+                                    : "Enviar para avaliação"}
+                              </button>
+                            )}
+                            {canEdit && (
+                              <Link
+                                to={`/novo-projeto?id=${project.id}`}
+                                className="inline-flex h-10 items-center gap-2 rounded-full border border-black/10 px-4 text-sm font-medium text-[#10512D] transition-colors hover:bg-[#10512D]/5"
+                              >
+                                <Pencil className="h-4 w-4" aria-hidden />
+                                Editar
+                              </Link>
+                            )}
+                            <Link
+                              to={`/projetos/${project.id}`}
+                              className="inline-flex h-10 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[#5A5858] transition-colors hover:bg-black/5"
+                            >
+                              Ver detalhes
+                              <ArrowRight className="h-4 w-4" aria-hidden />
+                            </Link>
+                            {canDelete && (
+                              <button
+                                onClick={() => handleDelete(project)}
+                                disabled={isActing}
+                                aria-label={`Excluir rascunho ${project.title}`}
+                                className="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-full text-red-600/80 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
+                              >
+                                <Trash2 className="h-4 w-4" aria-hidden />
+                              </button>
+                            )}
+                          </div>
+                        </m.li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
+            </main>
           </div>
-        )}
-      </main>
-    </div>
+        </div>
+      </MotionConfig>
+    </LazyMotion>
   );
 }

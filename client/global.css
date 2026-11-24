@@ -123,3 +123,23 @@
     white-space: pre;
   }
 }
+
+@layer utilities {
+  /* Usa a propriedade `translate` porque o Motion escreve `transform` inline e anularia o hover */
+  .lift {
+    transition:
+      translate 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .lift:hover {
+    translate: 0 -2px;
+    box-shadow: 0 14px 34px -18px rgb(16 81 45 / 0.28);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .lift,
+    .lift:hover {
+      transition: none;
+      translate: none;
+    }
+  }
+}
