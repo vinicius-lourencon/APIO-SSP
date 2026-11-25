@@ -1,6 +1,7 @@
 // Integration tests: real createServer() on an ephemeral port, throwaway SQLite DB and uploads dir.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import fs from "node:fs";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import type { Server } from "node:http";
@@ -188,6 +189,9 @@ describe("ciclo completo: submissão → ajustes → reenvio → reavaliação",
     expect(evaluation.status).toBe(201);
 
     expect((await api("PUT", `/projetos/${projectId}`, { token: student, body: { schedule: "Novo cronograma" } })).status).toBe(200);
+    const afterEdit = (await api("GET", `/projetos/${projectId}`, { token: student })).data;
+    expect(afterEdit.schedule).toBe("Novo cronograma");
+    expect(afterEdit.description).not.toBe("");
     expect((await api("POST", `/projetos/${projectId}/submit`, { token: student })).status).toBe(200);
 
     const project = (await api("GET", `/projetos/${projectId}`, { token: professor })).data;
@@ -398,6 +402,93 @@ describe("solicitação de reunião por e-mail", () => {
   });
 });
 
+describe("sessão, notificações e anexos", () => {
+  let student: string, student2: string, professor: string;
+  let projectId: number;
+
+  beforeAll(async () => {
+    [student, student2, professor] = await Promise.all([STUDENT, STUDENT_2, PROFESSOR].map(login));
+  });
+
+  it("/auth/me devolve o perfil da sessão sem expor a senha", async () => {
+    const res = await api("GET", "/auth/me", { token: student });
+    expect(res.status).toBe(200);
+    expect(res.data).toMatchObject({ email: STUDENT, role: "aluno" });
+    expect(JSON.stringify(res.data)).not.toMatch(/password|hash/i);
+    expect((await api("GET", "/auth/me")).status).toBe(401);
+  });
+
+  it("submeter notifica os professores; cada usuário vê só as suas notificações", async () => {
+    const draft = await api("POST", "/projetos", {
+      token: student2,
+      body: { title: "Projeto das notificações", description: "Descrição obrigatória para submeter" },
+    });
+    projectId = draft.data.id;
+    expect((await api("POST", `/projetos/${projectId}/submit`, { token: student2 })).status).toBe(200);
+
+    const forProfessor = (await api("GET", "/notificacoes", { token: professor })).data;
+    expect(forProfessor.unreadCount).toBeGreaterThan(0);
+    const mine = forProfessor.notifications.find((n: any) => n.project_id === projectId);
+    expect(mine).toMatchObject({ project_title: "Projeto das notificações", read: 0 });
+
+    const forStudent = (await api("GET", "/notificacoes", { token: student2 })).data;
+    expect(forStudent.notifications.every((n: any) => n.user_id !== mine.user_id)).toBe(true);
+    expect((await api("GET", "/notificacoes")).status).toBe(401);
+  });
+
+  it("marca como lida só a própria notificação; a de outro usuário dá 404", async () => {
+    const before = (await api("GET", "/notificacoes", { token: professor })).data;
+    const target = before.notifications.find((n: any) => n.project_id === projectId);
+
+    expect((await api("PUT", `/notificacoes/${target.id}/read`, { token: student2 })).status).toBe(404);
+    expect((await api("PUT", `/notificacoes/${target.id}/read`, { token: professor })).status).toBe(200);
+
+    const after = (await api("GET", "/notificacoes", { token: professor })).data;
+    expect(after.unreadCount).toBe(before.unreadCount - 1);
+    expect(after.notifications.find((n: any) => n.id === target.id).read).toBe(1);
+  });
+
+  it("marcar todas como lidas zera o contador", async () => {
+    expect((await api("PUT", "/notificacoes/read-all", { token: professor })).status).toBe(200);
+    expect((await api("GET", "/notificacoes", { token: professor })).data.unreadCount).toBe(0);
+  });
+
+  it("exclui só a própria notificação", async () => {
+    const list = (await api("GET", "/notificacoes", { token: professor })).data.notifications;
+    const target = list.find((n: any) => n.project_id === projectId);
+
+    expect((await api("DELETE", `/notificacoes/${target.id}`, { token: student2 })).status).toBe(404);
+    expect((await api("DELETE", `/notificacoes/${target.id}`, { token: professor })).status).toBe(200);
+    expect((await api("DELETE", `/notificacoes/${target.id}`, { token: professor })).status).toBe(404);
+    const after = (await api("GET", "/notificacoes", { token: professor })).data.notifications;
+    expect(after.some((n: any) => n.id === target.id)).toBe(false);
+  });
+
+  it("remover anexo: só o dono, só como aluno e só enquanto o projeto é editável", async () => {
+    const draft = await api("POST", "/projetos", { token: student, body: { title: "Projeto com anexos" } });
+    const id = draft.data.id;
+    const uploaded = await api("POST", `/files/upload/${id}`, { token: student, form: pdfForm("a.pdf") });
+    const attachment = uploaded.data.files[0].id;
+    const before = uploadedFiles();
+
+    expect((await api("DELETE", `/files/${attachment}`)).status).toBe(401);
+    expect((await api("DELETE", `/files/${attachment}`, { token: student2 })).status).toBe(403);
+    expect((await api("DELETE", `/files/${attachment}`, { token: professor })).status).toBe(403);
+    expect(uploadedFiles()).toBe(before);
+
+    expect((await api("DELETE", `/files/${attachment}`, { token: student })).status).toBe(200);
+    expect(uploadedFiles()).toBe(before - 1);
+    expect((await api("DELETE", `/files/${attachment}`, { token: student })).status).toBe(404);
+    expect((await api("GET", `/projetos/${id}`, { token: student })).data.attachments).toHaveLength(0);
+
+    const second = await api("POST", `/files/upload/${id}`, { token: student, form: pdfForm("b.pdf") });
+    await api("PUT", `/projetos/${id}`, { token: student, body: { description: "Pronto para enviar" } });
+    expect((await api("POST", `/projetos/${id}/submit`, { token: student })).status).toBe(200);
+    const locked = await api("DELETE", `/files/${second.data.files[0].id}`, { token: student });
+    expect(locked.status).toBe(400);
+  });
+});
+
 describe("erros e CORS", () => {
   it("responde JSON para corpo malformado e rota inexistente", async () => {
     const malformed = await api("POST", "/auth/login", { body: "{nao-json" });
@@ -417,5 +508,50 @@ describe("erros e CORS", () => {
     const external = await api("POST", "/auth/login", { body, headers: { Origin: "http://evil.example" } });
     expect(external.status).toBe(403);
     expect(external.data.error).toBeTruthy();
+  });
+});
+
+describe("acesso público pelo túnel", () => {
+  // fetch() cannot set the Host header, which the tunnel forwards as the public hostname
+  function rawLogin(headers: Record<string, string>): Promise<number> {
+    const body = JSON.stringify({ email: STUDENT, password: "senha123" });
+    const { port } = new URL(base);
+    return new Promise((resolve, reject) => {
+      const req = http.request(
+        {
+          host: "127.0.0.1",
+          port,
+          path: "/api/auth/login",
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body), ...headers },
+        },
+        (res) => {
+          res.resume();
+          res.on("end", () => resolve(res.statusCode ?? 0));
+        },
+      );
+      req.on("error", reject);
+      req.end(body);
+    });
+  }
+
+  it("aceita o login vindo do endereço público (mesma origem)", async () => {
+    const host = "brave-lion-sample-words.trycloudflare.com";
+    const headers = { Host: host, Origin: `https://${host}`, "X-Forwarded-For": "198.51.100.20" };
+    expect(await rawLogin(headers)).toBe(200);
+    expect(await rawLogin({ ...headers, Origin: "https://outro-site.trycloudflare.com" })).toBe(403);
+  });
+
+  it("conta o limite de tentativas por usuário, não pelo túnel", async () => {
+    const attempt = (ip: string) =>
+      api("POST", "/auth/login", {
+        body: { email: "ninguem@ifms.edu.br", password: "errada" },
+        headers: { "X-Forwarded-For": ip },
+      });
+
+    for (let i = 0; i < 20; i++) expect((await attempt("203.0.113.7")).status).toBe(401);
+    expect((await attempt("203.0.113.7")).status).toBe(429);
+    // Another visitor behind the same tunnel is not blocked
+    expect((await attempt("203.0.113.8")).status).toBe(401);
   });
 });

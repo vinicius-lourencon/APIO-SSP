@@ -1,7 +1,21 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import Header from "@/components/layout/Header";
+import { m } from "motion/react";
+import {
+  BadgeCheck,
+  Bell,
+  BellOff,
+  Check,
+  CheckCheck,
+  Info,
+  PencilLine,
+  Trash2,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
+import { PageHeading, PageShell, surface } from "@/components/layout/PageShell";
+import { EmptyState, ErrorState, ListSkeleton } from "@/components/PageStates";
 import { useConfirm } from "@/components/ConfirmDialog";
 import {
   getNotifications,
@@ -10,21 +24,48 @@ import {
   deleteNotification,
 } from "@/lib/api";
 import { ApiError } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { EASE, fadeUp } from "@/lib/motion";
 import type { Notification } from "@shared/api";
 
-const TYPE_STYLES: Record<string, { bg: string; border: string; dot: string }> = {
-  success: { bg: "bg-green-50", border: "border-l-4 border-l-green-500", dot: "bg-green-500" },
-  warning: { bg: "bg-orange-50", border: "border-l-4 border-l-orange-400", dot: "bg-orange-400" },
-  error: { bg: "bg-red-50", border: "border-l-4 border-l-red-500", dot: "bg-red-500" },
-  info: { bg: "bg-blue-50", border: "border-l-4 border-l-blue-400", dot: "bg-blue-400" },
+const TYPE_STYLES: Record<
+  string,
+  { icon: LucideIcon; chip: string; wash: string; tag: string; label: string }
+> = {
+  success: {
+    icon: BadgeCheck,
+    chip: "bg-gradient-to-br from-[#2EA866] to-[#1F8F52] text-white",
+    wash: "from-folha-claro",
+    tag: "bg-folha-claro text-mata",
+    label: "Aprovação",
+  },
+  warning: {
+    icon: PencilLine,
+    chip: "bg-gradient-to-br from-[#FB8A3C] to-[#EA580C] text-white",
+    wash: "from-orange-50",
+    tag: "bg-orange-100 text-orange-800",
+    label: "Atenção",
+  },
+  error: {
+    icon: XCircle,
+    chip: "bg-gradient-to-br from-red-500 to-red-600 text-white",
+    wash: "from-red-50",
+    tag: "bg-red-100 text-red-700",
+    label: "Reprovação",
+  },
+  info: {
+    icon: Info,
+    chip: "bg-gradient-to-br from-sky-500 to-sky-600 text-white",
+    wash: "from-sky-50",
+    tag: "bg-sky-100 text-sky-800",
+    label: "Informação",
+  },
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  success: "Aprovação",
-  warning: "Atenção",
-  error: "Reprovação",
-  info: "Informação",
-};
+const iconButton =
+  "flex h-9 w-9 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-mata/15 disabled:opacity-50";
+
+type Filter = "all" | "unread";
 
 export default function NotificacoesPage() {
   const confirm = useConfirm();
@@ -33,17 +74,20 @@ export default function NotificacoesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [filter, setFilter] = useState<Filter>("all");
 
   const fetchNotifications = useCallback(async () => {
-    setLoading(true);
     setError("");
     try {
       const data = await getNotifications();
       setNotifications(data.notifications);
       setUnreadCount(data.unreadCount);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erro ao carregar notificações.");
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Erro ao carregar notificações.",
+      );
     } finally {
       setLoading(false);
     }
@@ -53,11 +97,16 @@ export default function NotificacoesPage() {
     fetchNotifications();
   }, [fetchNotifications]);
 
+  const retry = () => {
+    setLoading(true);
+    fetchNotifications();
+  };
+
   const handleMarkRead = async (id: number) => {
     try {
       await markNotificationRead(id);
       setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: 1 as const } : n))
+        prev.map((n) => (n.id === id ? { ...n, read: 1 as const } : n)),
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch {
@@ -78,7 +127,8 @@ export default function NotificacoesPage() {
   const handleDelete = async (id: number) => {
     const confirmed = await confirm({
       title: "Excluir notificação",
-      description: "A notificação será removida da sua lista. Esta ação não pode ser desfeita.",
+      description:
+        "A notificação será removida da sua lista. Esta ação não pode ser desfeita.",
       confirmLabel: "Excluir",
       variant: "danger",
     });
@@ -100,166 +150,193 @@ export default function NotificacoesPage() {
   };
 
   const displayed =
-    filter === "unread"
-      ? notifications.filter((n) => !n.read)
-      : notifications;
+    filter === "unread" ? notifications.filter((n) => !n.read) : notifications;
+
+  const filters: { value: Filter; label: string; count?: number }[] = [
+    { value: "all", label: "Todas" },
+    { value: "unread", label: "Não lidas", count: unreadCount },
+  ];
 
   return (
-    <div className="min-h-screen bg-[#F9F9F9] font-ubuntu">
-      <Header />
-      <main className="max-w-[800px] mx-auto px-4 sm:px-8 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="font-ubuntu font-bold text-3xl text-black">Notificações</h1>
-            {unreadCount > 0 && (
-              <p className="text-sm text-[#5A5858] mt-1">
-                {unreadCount} não lida{unreadCount !== 1 ? "s" : ""}
-              </p>
-            )}
-          </div>
-          {unreadCount > 0 && (
+    <PageShell
+      width="max-w-3xl"
+      hero={
+        <PageHeading
+          title="Notificações"
+          subtitle={
+            unreadCount > 0
+              ? `${unreadCount} não lida${unreadCount !== 1 ? "s" : ""}`
+              : "Você está em dia."
+          }
+          action={
+            unreadCount > 0 && (
+              <button
+                onClick={handleMarkAllRead}
+                className="inline-flex h-10 items-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-white ring-1 ring-white/20 transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ipe/60"
+              >
+                <CheckCheck className="h-4 w-4" aria-hidden />
+                Marcar todas como lidas
+              </button>
+            )
+          }
+        />
+      }
+    >
+      <m.div
+        className="inline-flex rounded-full border border-linha bg-white p-1 shadow-sm"
+        role="tablist"
+        {...fadeUp(0.08)}
+      >
+        {filters.map(({ value, label, count }) => {
+          const active = filter === value;
+          return (
             <button
-              onClick={handleMarkAllRead}
-              className="text-sm text-[#10512D] hover:underline font-ubuntu"
+              key={value}
+              role="tab"
+              aria-selected={active}
+              onClick={() => setFilter(value)}
+              className={cn(
+                "inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-mata/15",
+                active ? "bg-mata text-white" : "text-apoio hover:text-mata",
+              )}
             >
-              Marcar todas como lidas
-            </button>
-          )}
-        </div>
-
-        {/* Filter tabs */}
-        <div className="flex gap-1 mb-4 bg-gray-100 p-1 rounded-lg w-fit">
-          {(["all", "unread"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-4 py-1.5 rounded-md text-sm font-ubuntu transition-colors ${
-                filter === f
-                  ? "bg-white text-[#10512D] font-medium shadow-sm"
-                  : "text-[#5A5858] hover:text-[#333]"
-              }`}
-            >
-              {f === "all" ? "Todas" : "Não lidas"}
-              {f === "unread" && unreadCount > 0 && (
-                <span className="ml-1.5 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">
-                  {unreadCount}
+              {label}
+              {count != null && count > 0 && (
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 text-xs tabular-nums",
+                    active
+                      ? "bg-white/20 text-white"
+                      : "bg-red-100 text-red-700",
+                  )}
+                >
+                  {count}
                 </span>
               )}
             </button>
-          ))}
-        </div>
+          );
+        })}
+      </m.div>
 
-        {/* Notification list */}
+      <section className="mt-6" aria-live="polite">
         {loading ? (
-          <div className="flex items-center justify-center py-24">
-            <div className="w-8 h-8 border-4 border-[#10512D] border-t-transparent rounded-full animate-spin" />
-          </div>
+          <ListSkeleton />
         ) : error ? (
-          <div className="text-center py-16">
-            <p className="text-red-600 font-ubuntu mb-4">{error}</p>
-            <button onClick={fetchNotifications} className="bg-[#10512D] text-white px-4 py-2 rounded">
-              Tentar novamente
-            </button>
-          </div>
+          <ErrorState message={error} onRetry={retry} />
         ) : displayed.length === 0 ? (
-          <div className="text-center py-24">
-            <svg className="w-16 h-16 text-[#CCC] mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-            <p className="font-ubuntu text-xl text-[#5A5858]">
-              {filter === "unread" ? "Nenhuma notificação não lida." : "Nenhuma notificação."}
-            </p>
-          </div>
+          <EmptyState
+            icon={filter === "unread" ? BellOff : Bell}
+            title={
+              filter === "unread"
+                ? "Nenhuma notificação não lida"
+                : "Nenhuma notificação"
+            }
+            description="Os avisos sobre seus projetos aparecem aqui."
+          />
         ) : (
-          <div className="space-y-2">
-            {displayed.map((notif) => {
-              const style = TYPE_STYLES[notif.type] || TYPE_STYLES.info;
-              const isDeleting = deletingId === notif.id;
+          <ul className="space-y-3">
+            {displayed.map((notif, index) => {
+              const style = TYPE_STYLES[notif.type] ?? TYPE_STYLES.info;
               return (
-                <div
+                <m.li
                   key={notif.id}
-                  className={`rounded-lg border border-[#EEE] overflow-hidden transition-opacity ${
-                    notif.read ? "opacity-70" : ""
-                  } ${style.bg} ${style.border}`}
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.5,
+                    ease: EASE,
+                    delay: Math.min(index, 6) * 0.05,
+                  }}
+                  className={cn(
+                    "relative flex items-start gap-3.5 p-4 sm:p-5",
+                    surface,
+                    !notif.read &&
+                      cn(
+                        "bg-gradient-to-r via-white via-50% to-white",
+                        style.wash,
+                      ),
+                    notif.read && "opacity-75",
+                  )}
                 >
-                  <div className="p-4 flex items-start gap-3">
-                    {/* Unread dot */}
-                    <div className="mt-1.5 shrink-0">
-                      {!notif.read ? (
-                        <div className={`w-2 h-2 rounded-full ${style.dot}`} />
-                      ) : (
-                        <div className="w-2 h-2 rounded-full bg-transparent" />
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <p className="text-sm font-ubuntu text-[#333]">{notif.message}</p>
-                          {notif.project_title && (
-                            <p className="text-xs text-[#5A5858] mt-1">
-                              Projeto:{" "}
-                              {notif.project_id ? (
-                                <Link
-                                  to={`/projetos/${notif.project_id}`}
-                                  className="text-[#10512D] hover:underline"
-                                >
-                                  {notif.project_title}
-                                </Link>
-                              ) : (
-                                notif.project_title
-                              )}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-3 mt-2">
-                            <span className={`text-xs font-ubuntu px-2 py-0.5 rounded-full ${style.bg} font-medium`}>
-                              {TYPE_LABELS[notif.type] || notif.type}
-                            </span>
-                            <span className="text-xs text-[#999]">
-                              {new Date(notif.created_at).toLocaleDateString("pt-BR", {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric",
-                              })}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex gap-1 shrink-0">
-                          {!notif.read && (
-                            <button
-                              onClick={() => handleMarkRead(notif.id)}
-                              className="p-1.5 rounded hover:bg-white/50 text-[#5A5858]"
-                              title="Marcar como lida"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleDelete(notif.id)}
-                            disabled={isDeleting}
-                            className="p-1.5 rounded hover:bg-red-100 text-[#5A5858] hover:text-red-600 disabled:opacity-50"
-                            title="Excluir notificação"
+                  <span
+                    className={cn(
+                      "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm",
+                      notif.read ? "bg-fundo text-apoio" : style.chip,
+                    )}
+                  >
+                    <style.icon className="h-5 w-5" aria-hidden />
+                    {!notif.read && (
+                      <span
+                        className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-ipe ring-2 ring-white"
+                        aria-label="Não lida"
+                      />
+                    )}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm leading-relaxed text-tinta">
+                      {notif.message}
+                    </p>
+                    {notif.project_title && (
+                      <p className="mt-1 text-xs text-apoio">
+                        Projeto:{" "}
+                        {notif.project_id ? (
+                          <Link
+                            to={`/projetos/${notif.project_id}`}
+                            className="font-medium text-mata hover:underline"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                            {notif.project_title}
+                          </Link>
+                        ) : (
+                          notif.project_title
+                        )}
+                      </p>
+                    )}
+                    <p className="mt-2 flex items-center gap-3 text-xs text-fraco">
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 font-medium",
+                          style.tag,
+                        )}
+                      >
+                        {TYPE_STYLES[notif.type]?.label ?? notif.type}
+                      </span>
+                      {new Date(notif.created_at).toLocaleDateString("pt-BR", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </p>
                   </div>
-                </div>
+                  <div className="flex shrink-0 gap-1">
+                    {!notif.read && (
+                      <button
+                        onClick={() => handleMarkRead(notif.id)}
+                        className={cn(iconButton, "text-mata hover:bg-mata/10")}
+                        title="Marcar como lida"
+                        aria-label="Marcar como lida"
+                      >
+                        <Check className="h-4 w-4" aria-hidden />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(notif.id)}
+                      disabled={deletingId === notif.id}
+                      className={cn(
+                        iconButton,
+                        "text-red-600/80 hover:bg-red-50 hover:text-red-600",
+                      )}
+                      title="Excluir notificação"
+                      aria-label="Excluir notificação"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden />
+                    </button>
+                  </div>
+                </m.li>
               );
             })}
-          </div>
+          </ul>
         )}
-      </main>
-    </div>
+      </section>
+    </PageShell>
   );
 }

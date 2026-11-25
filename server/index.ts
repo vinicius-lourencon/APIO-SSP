@@ -35,6 +35,11 @@ export function createServer() {
 
   const app = express();
 
+  // Public access goes through a tunnel (cloudflared) running on this same machine, so the
+  // real client IP arrives in X-Forwarded-For. Trusting only loopback keeps rate limits per
+  // user without letting remote clients spoof their IP (direct connections ignore the header).
+  app.set("trust proxy", "loopback");
+
   // ── Security Headers ──
   app.use(
     helmet({

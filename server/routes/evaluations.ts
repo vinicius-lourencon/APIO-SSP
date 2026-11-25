@@ -24,7 +24,7 @@ router.post(
   (req: Request, res: Response): void => {
     const parse = evaluationSchema.safeParse(req.body);
     if (!parse.success) {
-      res.status(400).json({ error: parse.error.errors[0].message });
+      res.status(400).json({ error: parse.error.issues[0].message });
       return;
     }
 

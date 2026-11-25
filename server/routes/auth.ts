@@ -15,7 +15,7 @@ const router = Router();
 router.post("/login", (req: Request, res: Response): void => {
   const parse = loginSchema.safeParse(req.body);
   if (!parse.success) {
-    res.status(400).json({ error: parse.error.errors[0].message });
+    res.status(400).json({ error: parse.error.issues[0].message });
     return;
   }
 
@@ -69,7 +69,7 @@ router.post("/login", (req: Request, res: Response): void => {
 router.post("/register", (req: Request, res: Response): void => {
   const parse = registerSchema.safeParse(req.body);
   if (!parse.success) {
-    res.status(400).json({ error: parse.error.errors[0].message });
+    res.status(400).json({ error: parse.error.issues[0].message });
     return;
   }
 

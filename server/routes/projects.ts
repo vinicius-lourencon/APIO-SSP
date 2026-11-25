@@ -140,7 +140,7 @@ router.get("/:id", requireAuth, (req: Request, res: Response): void => {
 router.post("/", requireAuth, requireRole("aluno"), (req: Request, res: Response): void => {
   const parse = projectSchema.partial().safeParse(req.body);
   if (!parse.success) {
-    res.status(400).json({ error: parse.error.errors[0].message });
+    res.status(400).json({ error: parse.error.issues[0].message });
     return;
   }
 
@@ -179,7 +179,7 @@ router.post("/", requireAuth, requireRole("aluno"), (req: Request, res: Response
 router.put("/:id", requireAuth, requireRole("aluno"), (req: Request, res: Response): void => {
   const parse = projectSchema.partial().safeParse(req.body);
   if (!parse.success) {
-    res.status(400).json({ error: parse.error.errors[0].message });
+    res.status(400).json({ error: parse.error.issues[0].message });
     return;
   }
 

@@ -1,51 +1,87 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import Header from "@/components/layout/Header";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { m } from "motion/react";
+import {
+  ArrowRight,
+  FolderPlus,
+  LayoutGrid,
+  MessageSquareText,
+  Pencil,
+  Plus,
+  Search,
+  Send,
+  Trash2,
+} from "lucide-react";
+import {
+  PageHeading,
+  PageShell,
+  accentButton,
+  primaryButton,
+  secondaryButton,
+  surface,
+} from "@/components/layout/PageShell";
+import { NextStepNote, ProjectTrail } from "@/components/ProjectTrail";
+import { STATUS_ICONS, STATUS_THEME, nextStep } from "@/lib/status-theme";
+import { EmptyState, ErrorState, ListSkeleton } from "@/components/PageStates";
+import { StatusBadge } from "@/components/StatusBadge";
+import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { getProjects, deleteProject, submitProject } from "@/lib/api";
 import { ApiError } from "@/lib/api";
-import type { Project } from "@shared/api";
-import { STATUS_LABELS, STATUS_COLORS, professorLabel } from "@shared/api";
+import { cn } from "@/lib/utils";
+import { EASE } from "@/lib/motion";
+import type { Project, ProjectStatus } from "@shared/api";
+import { STATUS_LABELS, firstName, professorLabel } from "@shared/api";
+
+const STATUS_ORDER: ProjectStatus[] = [
+  "rascunho",
+  "submetido",
+  "em_analise",
+  "ajustes_solicitados",
+  "aprovado",
+  "reprovado",
+];
 
 export default function MyProjects() {
   const confirm = useConfirm();
+  const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ProjectStatus | "">("");
   const [actionLoading, setActionLoading] = useState<number | null>(null);
-  const debouncedSearch = useDebouncedValue(search.trim());
 
   const fetchProjects = useCallback(async () => {
-    setLoading(true);
     setError("");
     try {
-      const data = await getProjects({
-        status: statusFilter || undefined,
-        search: debouncedSearch || undefined,
-      });
-      setProjects(data);
+      setProjects(await getProjects());
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erro ao carregar projetos.");
+      setError(
+        err instanceof ApiError ? err.message : "Erro ao carregar projetos.",
+      );
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, debouncedSearch]);
+  }, []);
 
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
+
+  const retry = () => {
+    setLoading(true);
+    fetchProjects();
+  };
 
   const handleDelete = async (project: Project) => {
     const confirmed = await confirm({
       title: "Excluir rascunho",
       description: (
         <>
-          O rascunho <strong>{project.title}</strong> e os arquivos anexados serão excluídos permanentemente. Esta ação
-          não pode ser desfeita.
+          O rascunho <strong>{project.title}</strong> e os arquivos anexados
+          serão excluídos permanentemente. Esta ação não pode ser desfeita.
         </>
       ),
       confirmLabel: "Excluir rascunho",
@@ -67,16 +103,20 @@ export default function MyProjects() {
   const handleSubmit = async (project: Project) => {
     const isResubmission = project.status === "ajustes_solicitados";
     const confirmed = await confirm({
-      title: isResubmission ? "Reenviar para avaliação" : "Enviar para avaliação",
+      title: isResubmission
+        ? "Reenviar para avaliação"
+        : "Enviar para avaliação",
       description: isResubmission ? (
         <>
-          <strong>{project.title}</strong> volta para o mesmo avaliador, que será notificado. O projeto não poderá ser
-          editado durante a nova avaliação.
+          <strong>{project.title}</strong> volta para o mesmo avaliador, que
+          será notificado. O projeto não poderá ser editado durante a nova
+          avaliação.
         </>
       ) : (
         <>
-          <strong>{project.title}</strong> será enviado aos professores para avaliação. O projeto não poderá ser editado
-          enquanto estiver em avaliação.
+          <strong>{project.title}</strong> será enviado aos professores para
+          avaliação. O projeto não poderá ser editado enquanto estiver em
+          avaliação.
         </>
       ),
       confirmLabel: isResubmission ? "Reenviar" : "Enviar para avaliação",
@@ -85,259 +125,330 @@ export default function MyProjects() {
     setActionLoading(project.id);
     try {
       await submitProject(project.id);
-      toast.success(isResubmission ? "Projeto reenviado ao avaliador!" : "Projeto enviado para avaliação!");
+      toast.success(
+        isResubmission
+          ? "Projeto reenviado ao avaliador!"
+          : "Projeto enviado para avaliação!",
+      );
       fetchProjects();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Erro ao enviar projeto.");
+      toast.error(
+        err instanceof ApiError ? err.message : "Erro ao enviar projeto.",
+      );
     } finally {
       setActionLoading(null);
     }
   };
 
-  const total = projects.length;
-  const approved = projects.filter((p) => p.status === "aprovado").length;
-  const inAnalysis = projects.filter((p) =>
-    ["em_analise", "submetido"].includes(p.status)
-  ).length;
-  const adjustments = projects.filter((p) => p.status === "ajustes_solicitados").length;
-  const drafts = projects.filter((p) => p.status === "rascunho").length;
-
-  const filtered = projects.filter((p) =>
-    search ? p.title.toLowerCase().includes(search.toLowerCase()) : true
+  const countByStatus = (status: ProjectStatus) =>
+    projects.filter((p) => p.status === status).length;
+  const query = search.trim().toLowerCase();
+  const visible = projects.filter(
+    (p) =>
+      (!statusFilter || p.status === statusFilter) &&
+      (!query || p.title.toLowerCase().includes(query)),
   );
+  const hasProjects = projects.length > 0;
+  const isFiltering = Boolean(statusFilter || query);
 
-  const STATUS_FILTERS = [
-    { value: "", label: "Todos" },
-    { value: "rascunho", label: "Rascunho" },
-    { value: "submetido", label: "Submetido" },
-    { value: "em_analise", label: "Em Análise" },
-    { value: "ajustes_solicitados", label: "Ajustes" },
-    { value: "aprovado", label: "Aprovado" },
-    { value: "reprovado", label: "Reprovado" },
-  ];
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("");
+  };
+
+  const waitingOnYou = projects.filter(
+    (p) => nextStep(p, user).yourTurn,
+  ).length;
 
   return (
-    <div className="min-h-screen bg-white font-ubuntu">
-      <Header />
-      <main className="max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-[53px] py-8">
-        <h1 className="font-ubuntu font-bold text-3xl sm:text-[36px] text-black">
-          Meus Projetos de Extensão
-        </h1>
-        <p className="font-ubuntu text-lg sm:text-[20px] text-[#5A5858] mt-2">
-          Gerencie seus projetos e acompanhe o status de avaliação
-        </p>
-
-        {/* Tab bar */}
-        <div className="mt-8 rounded border border-[#CCC] bg-[rgba(204,204,204,0.80)] px-4 sm:px-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 min-h-[67px]">
-          <div className="flex items-center">
-            <span className="font-ubuntu text-[20px] font-semibold text-[#5A5858] px-4 py-4 sm:py-0">
-              Meus Projetos
-            </span>
-            <Link
-              to="/novo-projeto"
-              className="font-ubuntu text-[20px] text-[#5A5858]/60 px-4 py-4 sm:py-0 hover:opacity-100 transition-opacity"
-            >
-              Novo Projeto
+    <PageShell
+      hero={
+        <PageHeading
+          title={`Olá, ${firstName(user?.name ?? "")}`}
+          subtitle={
+            waitingOnYou > 0
+              ? `${waitingOnYou} ${waitingOnYou === 1 ? "projeto espera" : "projetos esperam"} uma ação sua.`
+              : "Acompanhe em que etapa está cada proposta."
+          }
+          action={
+            <Link to="/novo-projeto" className={accentButton}>
+              <Plus className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+              Novo projeto
             </Link>
+          }
+        />
+      }
+    >
+      {hasProjects && (
+        <m.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: EASE, delay: 0.08 }}
+        >
+          <div
+            className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+            role="group"
+            aria-label="Filtrar por status"
+          >
+            {[
+              {
+                value: "" as const,
+                label: "Todos",
+                count: projects.length,
+              },
+              ...STATUS_ORDER.map((status) => ({
+                value: status,
+                label: STATUS_LABELS[status],
+                count: countByStatus(status),
+              })).filter((f) => f.count > 0 || f.value === statusFilter),
+            ].map(({ value, label, count }) => {
+              const active = statusFilter === value;
+              const Icon = value ? STATUS_ICONS[value] : LayoutGrid;
+              const theme = value ? STATUS_THEME[value] : null;
+              return (
+                <button
+                  key={value || "all"}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setStatusFilter(active ? "" : value)}
+                  className={cn(
+                    "relative flex items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-br p-3.5 text-left shadow-[0_14px_30px_-18px_rgb(20_38_28/0.6)] transition-[opacity,transform,box-shadow] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ipe/70 motion-reduce:hover:translate-y-0 sm:gap-4 sm:p-4",
+                    value
+                      ? theme!.solid
+                      : "from-[#0B4D2D] to-[#17864D] text-white",
+                    active &&
+                      "ring-4 ring-white/90 ring-offset-2 ring-offset-mata/40",
+                    statusFilter && !active && "opacity-60 hover:opacity-100",
+                  )}
+                >
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/15"
+                  />
+                  <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30">
+                    <Icon className="h-5 w-5" aria-hidden />
+                  </span>
+                  <span className="relative min-w-0">
+                    <span className="block font-display text-2xl font-bold leading-none tabular-nums">
+                      {count}
+                    </span>
+                    <span className="mt-1 block text-xs font-medium leading-tight opacity-90 sm:text-sm">
+                      {label}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
-          <div className="border border-[#CCC] bg-white rounded flex items-center px-3 h-[49px] w-full sm:w-80 lg:w-[400px]">
-            <svg className="w-4 h-4 text-[#5A5858] opacity-50 mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="8" strokeWidth="2" />
-              <path d="M21 21l-4.35-4.35" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Buscar projeto..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full outline-none font-ubuntu text-base text-[#5A5858] placeholder:text-[#5A5858]/60 bg-transparent"
-            />
+
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-apoio">
+              {statusFilter ? (
+                <>
+                  Mostrando{" "}
+                  <strong className="text-tinta">
+                    {STATUS_LABELS[statusFilter]}
+                  </strong>{" "}
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter("")}
+                    className="ml-1 font-semibold text-mata underline-offset-4 hover:underline"
+                  >
+                    ver todos
+                  </button>
+                </>
+              ) : (
+                <>
+                  {projects.length}{" "}
+                  {projects.length === 1 ? "projeto" : "projetos"}
+                </>
+              )}
+            </p>
+            <label className="relative block w-full sm:w-72">
+              <span className="sr-only">Buscar projeto</span>
+              <Search
+                className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-fraco"
+                aria-hidden
+              />
+              <input
+                type="search"
+                placeholder="Buscar projeto"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-11 w-full rounded-full border border-linha bg-white pl-10 pr-4 text-base text-tinta shadow-sm outline-none transition-shadow placeholder:text-fraco focus:border-mata/50 focus:ring-4 focus:ring-mata/10"
+              />
+            </label>
           </div>
-        </div>
+        </m.div>
+      )}
 
-        {/* Stats cards */}
-        <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          {[
-            { label: "Total", value: total, color: "text-black" },
-            { label: "Aprovados", value: approved, color: "text-green-600" },
-            { label: "Em Análise", value: inAnalysis, color: "text-yellow-600" },
-            { label: "Ajustes", value: adjustments, color: "text-orange-500" },
-            { label: "Rascunhos", value: drafts, color: "text-gray-500" },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="border border-[#CCC] rounded-lg p-4 bg-white text-center">
-              <p className="font-ubuntu text-sm text-[#5A5858] mb-1">{label}</p>
-              <p className={`font-ubuntu text-3xl font-bold ${color}`}>{value}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Status filter chips */}
-        <div className="mt-4 flex gap-2 flex-wrap">
-          {STATUS_FILTERS.map(({ value, label }) => (
-            <button
-              key={value}
-              onClick={() => setStatusFilter(value)}
-              className={`px-3 py-1 rounded-full text-sm font-ubuntu transition-colors ${
-                statusFilter === value
-                  ? "bg-[#10512D] text-white"
-                  : "bg-gray-100 text-[#5A5858] hover:bg-gray-200"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* Project list */}
-        <div className="mt-4 border border-[#CCC] rounded-lg bg-white overflow-hidden">
-          {loading ? (
-            <div className="flex items-center justify-center py-24">
-              <div className="w-8 h-8 border-4 border-[#10512D] border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center py-24 gap-4">
-              <p className="text-red-600 font-ubuntu">{error}</p>
-              <button
-                onClick={fetchProjects}
-                className="bg-[#10512D] text-white px-4 py-2 rounded font-ubuntu hover:bg-green-800"
-              >
-                Tentar novamente
-              </button>
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 gap-4">
-              <svg className="w-16 h-16 text-[#CCC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <p className="font-ubuntu text-xl text-[#5A5858]">Nenhum projeto encontrado.</p>
-              <Link
-                to="/novo-projeto"
-                className="mt-2 bg-[#008000] text-white font-ubuntu px-6 py-2 rounded hover:bg-green-800"
-              >
-                Criar novo projeto
+      <section className={hasProjects ? "mt-4" : undefined} aria-live="polite">
+        {loading ? (
+          <ListSkeleton />
+        ) : error ? (
+          <ErrorState message={error} onRetry={retry} />
+        ) : !hasProjects ? (
+          <EmptyState
+            icon={FolderPlus}
+            title="Seu primeiro projeto começa aqui"
+            description="Crie uma proposta e envie para avaliação quando estiver pronta."
+            action={
+              <Link to="/novo-projeto" className={primaryButton}>
+                Criar projeto
+                <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
-            </div>
-          ) : (
-            <div className="divide-y divide-[#CCC]">
-              {filtered.map((project) => {
-                const statusStyle = STATUS_COLORS[project.status];
-                const statusLabel = STATUS_LABELS[project.status];
-                const canEdit =
-                  project.status === "rascunho" || project.status === "ajustes_solicitados";
-                const canSubmit = canEdit;
-                const canDelete = project.status === "rascunho";
-                const isActing = actionLoading === project.id;
-
-                return (
-                  <div key={project.id} className="p-6 hover:bg-gray-50 transition-colors">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-ubuntu font-bold text-xl text-black truncate">
-                          {project.title}
-                        </h3>
-                        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-sm text-[#5A5858]">
-                          {project.proposal_type && (
-                            <span>{project.proposal_type}</span>
-                          )}
-                          {project.professor_name && (
-                            <span>• {professorLabel(project.professor_name)}</span>
-                          )}
-                          <span>
-                            •{" "}
-                            {new Date(project.created_at).toLocaleDateString("pt-BR")}
-                          </span>
-                        </div>
-                      </div>
-                      <span
-                        className={`shrink-0 inline-block px-3 py-1 rounded-full text-xs font-ubuntu font-medium ${statusStyle.bg} ${statusStyle.text}`}
-                      >
-                        {statusLabel}
-                      </span>
-                    </div>
-
-                    {/* Progress bar */}
-                    <div className="mb-3">
-                      <div className="flex justify-between text-xs text-[#5A5858] mb-1">
-                        <span>Progresso da avaliação</span>
-                        <span>{project.progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-100 rounded-full h-2">
-                        <div
-                          className="bg-[#10512D] h-2 rounded-full transition-all"
-                          style={{ width: `${project.progress}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Latest feedback */}
-                    {project.latest_feedback && (
-                      <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded text-sm text-[#5A5858]">
-                        <span className="font-semibold text-amber-700">Feedback: </span>
-                        {project.latest_feedback}
-                      </div>
-                    )}
-
-                    {/* Action buttons */}
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      <Link
-                        to={`/projetos/${project.id}`}
-                        className="px-3 py-1.5 border border-[#CCC] rounded text-sm font-ubuntu text-[#5A5858] hover:bg-gray-100"
-                      >
-                        Ver detalhes
-                      </Link>
-                      {canEdit && (
-                        <Link
-                          to={`/novo-projeto?id=${project.id}`}
-                          className="px-3 py-1.5 border border-[#10512D] rounded text-sm font-ubuntu text-[#10512D] hover:bg-green-50"
-                        >
-                          Editar
-                        </Link>
-                      )}
-                      {canSubmit && (
-                        <button
-                          onClick={() => handleSubmit(project)}
-                          disabled={isActing}
-                          className="px-3 py-1.5 bg-[#008000] text-white rounded text-sm font-ubuntu hover:bg-green-800 disabled:opacity-60"
-                        >
-                          {isActing
-                            ? "Enviando..."
-                            : project.status === "ajustes_solicitados"
-                              ? "Reenviar para Avaliação"
-                              : "Enviar para Avaliação"}
-                        </button>
-                      )}
-                      {canDelete && (
-                        <button
-                          onClick={() => handleDelete(project)}
-                          disabled={isActing}
-                          className="px-3 py-1.5 border border-red-200 rounded text-sm font-ubuntu text-red-600 hover:bg-red-50 disabled:opacity-60"
-                        >
-                          Excluir
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* New project CTA (only show when there are projects) */}
-        {!loading && !error && filtered.length > 0 && (
-          <div className="mt-6 flex justify-end">
-            <Link
-              to="/novo-projeto"
-              className="flex items-center gap-2 bg-[#008000] text-white font-ubuntu px-6 py-2.5 rounded hover:bg-green-800 transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Novo Projeto
-            </Link>
+            }
+          />
+        ) : visible.length === 0 ? (
+          <div
+            className={cn(
+              "flex flex-col items-center gap-3 px-6 py-14 text-center",
+              surface,
+            )}
+          >
+            <p className="font-display text-lg font-semibold text-tinta">
+              Nenhum projeto com esse filtro
+            </p>
+            {isFiltering && (
+              <button
+                onClick={clearFilters}
+                className="text-sm font-semibold text-mata underline-offset-4 hover:underline"
+              >
+                Limpar filtros
+              </button>
+            )}
           </div>
+        ) : (
+          <ul className="space-y-4">
+            {visible.map((project, index) => {
+              const canEdit =
+                project.status === "rascunho" ||
+                project.status === "ajustes_solicitados";
+              const canSubmit = canEdit;
+              const canDelete = project.status === "rascunho";
+              const isActing = actionLoading === project.id;
+              const step = nextStep(project, user);
+              const meta = [
+                project.proposal_type,
+                project.professor_name
+                  ? professorLabel(project.professor_name)
+                  : "",
+                `Criado em ${new Date(project.created_at).toLocaleDateString("pt-BR")}`,
+              ].filter(Boolean);
+
+              return (
+                <m.li
+                  key={project.id}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.6,
+                    ease: EASE,
+                    delay: Math.min(index, 6) * 0.06,
+                  }}
+                  className={cn(
+                    "lift relative overflow-hidden bg-gradient-to-b to-white to-[62%] p-5 pl-6 sm:p-6 sm:pl-7",
+                    surface,
+                    STATUS_THEME[project.status].wash,
+                  )}
+                >
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "absolute inset-y-0 left-0 w-1.5",
+                      STATUS_THEME[project.status].stripe,
+                    )}
+                  />
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-lg font-semibold leading-snug text-tinta sm:text-xl">
+                        <Link
+                          to={`/projetos/${project.id}`}
+                          className="rounded-sm outline-none transition-colors hover:text-mata focus-visible:ring-4 focus-visible:ring-mata/15"
+                        >
+                          {project.title}
+                        </Link>
+                      </h2>
+                      <p className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-apoio">
+                        {meta.map((item) => (
+                          <span key={item}>{item}</span>
+                        ))}
+                      </p>
+                    </div>
+                    <StatusBadge status={project.status} />
+                  </div>
+
+                  <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center">
+                    <ProjectTrail status={project.status} />
+                    <NextStepNote step={step} />
+                  </div>
+
+                  {project.latest_feedback && (
+                    <div className="mt-4 flex gap-3 rounded-xl bg-[#F1F8F3] p-3 text-sm text-tinta ring-1 ring-inset ring-[#DDEDE1]">
+                      <MessageSquareText
+                        className="mt-0.5 h-4 w-4 shrink-0 text-mata"
+                        aria-hidden
+                      />
+                      <p className="line-clamp-2">
+                        <span className="font-semibold">Parecer: </span>
+                        {project.latest_feedback}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-linha pt-4">
+                    {canSubmit && (
+                      <button
+                        onClick={() => handleSubmit(project)}
+                        disabled={isActing}
+                        className={cn(primaryButton, "h-10 px-5")}
+                      >
+                        <Send className="h-4 w-4" aria-hidden />
+                        {isActing
+                          ? "Enviando..."
+                          : project.status === "ajustes_solicitados"
+                            ? "Reenviar para avaliação"
+                            : "Enviar para avaliação"}
+                      </button>
+                    )}
+                    {canEdit && (
+                      <Link
+                        to={`/novo-projeto?id=${project.id}`}
+                        className={cn(secondaryButton, "h-10 px-4")}
+                      >
+                        <Pencil className="h-4 w-4" aria-hidden />
+                        Editar
+                      </Link>
+                    )}
+                    <Link
+                      to={`/projetos/${project.id}`}
+                      className={cn(
+                        canEdit
+                          ? "inline-flex h-10 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-apoio transition-colors hover:bg-fundo hover:text-mata"
+                          : cn(secondaryButton, "h-10 px-4"),
+                      )}
+                    >
+                      Ver detalhes
+                      <ArrowRight className="h-4 w-4" aria-hidden />
+                    </Link>
+                    {canDelete && (
+                      <button
+                        onClick={() => handleDelete(project)}
+                        disabled={isActing}
+                        aria-label={`Excluir rascunho ${project.title}`}
+                        title="Excluir rascunho"
+                        className="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-full text-red-600/80 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden />
+                      </button>
+                    )}
+                  </div>
+                </m.li>
+              );
+            })}
+          </ul>
         )}
-      </main>
-    </div>
+      </section>
+    </PageShell>
   );
 }

@@ -1,7 +1,6 @@
-/** @import must precede all other statements */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Kumbh+Sans:wght@400;600;700&display=swap");
+/* Fontes servidas pelo próprio projeto (funcionam sem internet) */
+@import "@fontsource-variable/figtree";
+@import "@fontsource-variable/bricolage-grotesque";
 
 @tailwind base;
 @tailwind components;
@@ -15,7 +14,7 @@
   */
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 145 31% 11%;
 
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -23,7 +22,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
+    --primary: 151 73% 20%;
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96.1%;
@@ -38,9 +37,9 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 108 15% 89%;
+    --input: 108 15% 89%;
+    --ring: 151 73% 20%;
 
     --radius: 0.5rem;
 
@@ -109,7 +108,18 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-fundo font-sans text-tinta antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+    font-optical-sizing: auto;
+  }
+
+  ::selection {
+    @apply bg-ipe/40 text-tinta;
   }
 
   :where(p, span, li, h1, h2, h3, h4, h5, h6, a, button, label, td, th) {
@@ -121,5 +131,57 @@
   code {
     overflow-x: auto;
     white-space: pre;
+  }
+}
+
+@layer utilities {
+  /* Usa a propriedade `translate` porque o Motion escreve `transform` inline e anularia o hover */
+  .lift {
+    transition:
+      translate 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .lift:hover {
+    translate: 0 -2px;
+    box-shadow: 0 18px 40px -22px rgb(14 90 53 / 0.45);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .lift,
+    .lift:hover {
+      transition: none;
+      translate: none;
+    }
+  }
+}
+
+@layer components {
+  /* Faixa verde do topo: textura leve de pontos para não ficar chapada */
+  .faixa {
+    background-color: #0b4d2d;
+    background-image:
+      radial-gradient(rgb(255 255 255 / 0.1) 1px, transparent 1.3px),
+      radial-gradient(30% 60% at 95% 0%, rgb(255 210 63 / 0.3), transparent 70%),
+      radial-gradient(45% 80% at 8% 100%, rgb(46 168 102 / 0.55), transparent 70%),
+      linear-gradient(120deg, #093f25 0%, #0e5a35 45%, #15824b 100%);
+    background-size:
+      18px 18px,
+      100% 100%,
+      100% 100%,
+      100% 100%;
+  }
+
+  /* Fundo das páginas: verde-sálvia com textura de pontos, nunca branco */
+  .fundo-vivo {
+    background-color: #d3e7d9;
+    background-image:
+      radial-gradient(rgb(14 90 53 / 0.09) 1px, transparent 1.3px),
+      radial-gradient(55% 35% at 100% 25%, rgb(255 210 63 / 0.22), transparent 70%),
+      radial-gradient(50% 40% at 0% 65%, rgb(46 168 102 / 0.22), transparent 70%),
+      linear-gradient(180deg, #c2ddc9 0%, #d2e7d8 50%, #cfe4d5 100%);
+    background-size:
+      18px 18px,
+      100% 100%,
+      100% 100%,
+      100% 100%;
   }
 }

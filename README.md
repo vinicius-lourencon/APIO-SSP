@@ -87,6 +87,20 @@ pnpm dev                  # front + API em http://localhost:8080
 
 Versão de produção local: `pnpm build` e depois `pnpm start` (porta `PORT`, padrão 3000; exige `JWT_SECRET`).
 
+### Publicar na internet (a partir deste computador)
+O SISAPA pode ser aberto de qualquer lugar, como um site comum, usando o próprio notebook como servidor e um túnel gratuito da Cloudflare (sem conta, domínio ou cartão).
+
+1. Instale o túnel uma vez: `winget install --id Cloudflare.cloudflared` (aceite a permissão de administrador do Windows).
+2. Execute **`publicar-sisapa.bat`**. Ele instala as dependências, gera a versão de produção, cria um `JWT_SECRET` no `.env` (se ainda não houver), faz um backup, sobe o servidor e mostra o **link público** `https://….trycloudflare.com` (já copiado para colar e enviar).
+
+Cuidados:
+- O site só fica no ar enquanto o notebook estiver ligado, conectado e com a janela aberta. Ctrl+C ou fechar a janela tira do ar.
+- O link muda a cada vez que o programa é reiniciado; quem acessa precisa do link novo e fazer login de novo.
+- Na produção não há usuários de demonstração: cada pessoa se cadastra com o e-mail institucional.
+
+### Backup
+`pnpm backup` copia `sisapa.db` e `uploads/` para `backups/AAAA-MM-DD_HH-MM-SS/` (pode rodar com o servidor ligado; guarda os 10 mais recentes). O `publicar-sisapa.bat` faz um backup a cada início. Para restaurar, pare o servidor e copie os arquivos de volta para a raiz.
+
 ### Usuários de demonstração
 Com o banco vazio, o `pnpm dev` cria usuários e projetos de exemplo (senha **`senha123`**):
 
@@ -97,7 +111,7 @@ Com o banco vazio, o `pnpm dev` cria usuários e projetos de exemplo (senha **`s
 | Professora | `ana.costa@ifms.edu.br` |
 | Professor | `carlos.lima@ifms.edu.br` |
 
-Os dados ficam em `sisapa.db` (e `sisapa.db-wal`/`-shm`) e os anexos em `uploads/`, na raiz do projeto, e **persistem** entre execuções. Para recomeçar do zero, apague `sisapa.db*`. Para backup, copie esses arquivos e a pasta `uploads/` com o servidor parado.
+Os dados ficam em `sisapa.db` (e `sisapa.db-wal`/`-shm`) e os anexos em `uploads/`, na raiz do projeto, e **persistem** entre execuções. Para recomeçar do zero, apague `sisapa.db*`. Para backup, use `pnpm backup` (veja acima).
 
 ---
 
@@ -117,6 +131,8 @@ As variáveis de ambiente estão descritas em `.env.example`; copie-o para `.env
 | `pnpm test` | Testes (Vitest): integração da API com banco temporário + serviço de e-mail |
 | `pnpm lint` | Análise estática com ESLint |
 | `pnpm email:config` | Configura (ou troca) a conta de e-mail no `.env` local |
+| `pnpm publicar` | Sobe o build de produção e o túnel público (use o `publicar-sisapa.bat`, que faz o build antes) |
+| `pnpm backup` | Copia o banco e os anexos para `backups/` |
 | `pnpm typecheck` | Verificação de tipos TypeScript |
 | `pnpm format.fix` | Formatação com Prettier |
 
@@ -148,6 +164,7 @@ APIO-SSP/
 ├── shared/api.ts              # Tipos e regras compartilhadas entre front e back
 ├── scripts/configure-email.mjs # Configuração guiada do e-mail (pnpm email:config)
 ├── iniciar-sisapa.bat         # Atalho de inicialização (Windows)
+├── publicar-sisapa.bat        # Publica na internet pelo túnel da Cloudflare
 └── .env.example               # Modelo de configuração
 ```
 
@@ -158,7 +175,7 @@ APIO-SSP/
 - Senhas com **bcrypt**; sessões com **JWT** de 8 horas
 - Cadastro restrito por domínio institucional e por perfil
 - Rotas protegidas por autenticação e perfil, validadas no servidor (não só na interface)
-- Rate limit: 20 tentativas / 15 min em login e cadastro; 1 solicitação de reunião / 10 min por projeto
+- Rate limit: 20 tentativas / 15 min em login e cadastro; 1 solicitação de reunião / 10 min por projeto. Pelo túnel, o limite conta por visitante (o servidor só confia no `X-Forwarded-For` vindo do próprio computador)
 - Headers de segurança com **Helmet** (CSP); CORS restrito à mesma origem e ao ambiente local
 - Texto gravado como digitado e escapado na exibição (React e templates de e-mail), sem HTML injetado
 - Upload validado (tipo, tamanho, dono e status do projeto) antes de gravar no disco; proteção contra path traversal no download

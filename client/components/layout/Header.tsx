@@ -1,18 +1,62 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import {
+  Bell,
+  ChevronDown,
+  ClipboardCheck,
+  FolderKanban,
+  LogOut,
+  Plus,
+  User,
+  type LucideIcon,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getNotifications, markAllNotificationsRead } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import type { Notification } from "@shared/api";
 import { firstName } from "@shared/api";
 
 const LOGO_URL = "/logo-sisapa.png";
 
-const notifTypeBg: Record<string, string> = {
-  success: "bg-green-50 border-l-4 border-green-500",
-  warning: "bg-orange-50 border-l-4 border-orange-400",
-  error: "bg-red-50 border-l-4 border-red-400",
-  info: "bg-blue-50 border-l-4 border-blue-400",
+const NOTIFICATION_ACCENT: Record<string, string> = {
+  success: "border-l-folha",
+  warning: "border-l-ipe",
+  error: "border-l-red-500",
+  info: "border-l-blue-400",
 };
+
+const POPOVER =
+  "absolute right-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-linha bg-white text-tinta shadow-[0_20px_50px_-20px_rgb(0_0_0/0.25)] animate-in fade-in-0 zoom-in-95 motion-reduce:animate-none";
+
+function NavItem({
+  to,
+  active,
+  icon: Icon,
+  label,
+}: {
+  to: string;
+  active: boolean;
+  icon: LucideIcon;
+  label: string;
+}) {
+  return (
+    <Link
+      to={to}
+      aria-label={label}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "inline-flex h-10 items-center gap-2 rounded-full px-3 font-sans text-sm font-medium transition-colors sm:px-4",
+        "relative focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ipe/60",
+        active
+          ? "bg-white/15 text-white after:absolute after:inset-x-4 after:-bottom-[15px] after:h-[3px] after:rounded-full after:bg-ipe"
+          : "text-white/75 hover:bg-white/10 hover:text-white",
+      )}
+    >
+      <Icon className="h-[18px] w-[18px]" aria-hidden />
+      <span className="hidden sm:inline">{label}</span>
+    </Link>
+  );
+}
 
 export default function Header() {
   const { user, logout } = useAuth();
@@ -38,7 +82,10 @@ export default function Header() {
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(e.target as Node)
+      ) {
         setProfileOpen(false);
       }
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
@@ -74,70 +121,83 @@ export default function Header() {
   const isProfessor = user?.role === "professor";
 
   return (
-    <header className="bg-white border-b border-[#CCC] sticky top-0 z-20">
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-[53px] h-[72px] flex items-center justify-between gap-4">
-        {/* Brand */}
-        <div className="flex items-center gap-3 shrink-0">
-          <img src={LOGO_URL} alt="SISAPA logo" className="w-10 h-10 object-contain" />
-          <span className="text-[#10512D] font-ubuntu font-bold text-xl leading-none">SISAPA</span>
-        </div>
+    <header className="border-b border-white/10">
+      <div className="mx-auto flex h-[72px] max-w-[1440px] items-center justify-between gap-3 px-4 sm:px-8 lg:px-[53px]">
+        <Link
+          to={isProfessor ? "/avaliador" : "/meus-projetos"}
+          className="flex shrink-0 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ipe/60"
+          aria-label="SISAPA, página inicial"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white p-1 shadow-sm">
+            <img
+              src={LOGO_URL}
+              alt=""
+              className="h-full w-full object-contain"
+            />
+          </span>
+          <span className="hidden font-sans font-display text-xl font-bold leading-none tracking-tight text-white min-[400px]:block">
+            SISAPA
+          </span>
+        </Link>
 
-        {/* Nav */}
-        <nav className="hidden md:flex items-center gap-6">
+        <nav className="flex items-center gap-1" aria-label="Principal">
           {isStudent && (
             <>
-              <Link
+              <NavItem
                 to="/meus-projetos"
-                className={`font-ubuntu text-sm transition-colors ${
-                  location.pathname.startsWith("/meus-projetos") || location.pathname === "/novo-projeto"
-                    ? "text-[#10512D] font-semibold"
-                    : "text-[#5A5858] hover:text-[#10512D]"
-                }`}
-              >
-                Área do Estudante
-              </Link>
+                label="Meus projetos"
+                icon={FolderKanban}
+                active={location.pathname.startsWith("/meus-projetos")}
+              />
+              <NavItem
+                to="/novo-projeto"
+                label="Novo projeto"
+                icon={Plus}
+                active={location.pathname === "/novo-projeto"}
+              />
             </>
           )}
           {isProfessor && (
-            <Link
+            <NavItem
               to="/avaliador"
-              className={`font-ubuntu text-sm transition-colors ${
-                location.pathname.startsWith("/avaliador")
-                  ? "text-[#10512D] font-semibold"
-                  : "text-[#5A5858] hover:text-[#10512D]"
-              }`}
-            >
-              Área do Avaliador
-            </Link>
+              label="Avaliações"
+              icon={ClipboardCheck}
+              active={location.pathname.startsWith("/avaliador")}
+            />
           )}
         </nav>
 
-        <div className="flex items-center gap-3">
-          {/* Notifications bell */}
+        <div className="flex items-center gap-2">
           <div className="relative" ref={notifRef}>
             <button
               onClick={() => setNotifOpen((s) => !s)}
-              className="relative p-2 rounded-full hover:bg-gray-100 transition-colors"
-              aria-label="Notificações"
+              className="relative flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ipe/60"
+              aria-label={
+                unreadCount > 0
+                  ? `Notificações, ${unreadCount} não lidas`
+                  : "Notificações"
+              }
+              aria-expanded={notifOpen}
+              aria-haspopup="true"
             >
-              <svg className="w-5 h-5 text-[#5A5858]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
+              <Bell className="h-5 w-5 text-white" aria-hidden />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-ipe px-1 text-[10px] font-bold text-tinta ring-2 ring-mata">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
             </button>
 
             {notifOpen && (
-              <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-[#E6E6E6] rounded-lg shadow-lg z-30 overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-[#EEE]">
-                  <span className="font-ubuntu font-semibold text-sm text-black">Notificações</span>
+              <div className={cn(POPOVER, "w-80 max-w-[calc(100vw-2rem)]")}>
+                <div className="flex items-center justify-between border-b border-black/5 px-4 py-3">
+                  <span className="font-sans text-sm font-semibold text-tinta">
+                    Notificações
+                  </span>
                   {unreadCount > 0 && (
                     <button
                       onClick={handleMarkAllRead}
-                      className="text-xs text-[#10512D] hover:underline"
+                      className="text-xs font-medium text-mata hover:underline"
                     >
                       Marcar todas como lidas
                     </button>
@@ -145,19 +205,23 @@ export default function Header() {
                 </div>
                 <div className="max-h-72 overflow-y-auto">
                   {notifications.length === 0 ? (
-                    <p className="px-4 py-6 text-center text-sm text-[#5A5858]">
+                    <p className="px-4 py-8 text-center text-sm text-apoio">
                       Nenhuma notificação.
                     </p>
                   ) : (
                     notifications.slice(0, 10).map((n) => (
                       <div
                         key={n.id}
-                        className={`px-4 py-3 border-b border-[#F5F5F5] last:border-0 ${
-                          n.read ? "opacity-60" : ""
-                        } ${notifTypeBg[n.type] || ""}`}
+                        className={cn(
+                          "border-b border-l-4 border-b-black/5 px-4 py-3 last:border-b-0",
+                          NOTIFICATION_ACCENT[n.type] ?? "border-l-transparent",
+                          n.read && "opacity-60",
+                        )}
                       >
-                        <p className="text-sm text-[#333] font-ubuntu">{n.message}</p>
-                        <p className="text-xs text-[#999] mt-1">
+                        <p className="font-sans text-sm text-tinta">
+                          {n.message}
+                        </p>
+                        <p className="mt-1 text-xs text-fraco">
                           {new Date(n.created_at).toLocaleDateString("pt-BR")}
                         </p>
                       </div>
@@ -167,7 +231,7 @@ export default function Header() {
                 <Link
                   to="/notificacoes"
                   onClick={() => setNotifOpen(false)}
-                  className="block text-center text-xs text-[#10512D] hover:underline py-2 border-t border-[#EEE]"
+                  className="block border-t border-black/5 py-2.5 text-center text-xs font-medium text-mata hover:bg-mata/5"
                 >
                   Ver todas
                 </Link>
@@ -175,58 +239,53 @@ export default function Header() {
             )}
           </div>
 
-          {/* Profile dropdown */}
           <div className="relative flex items-center" ref={profileRef}>
             <button
               onClick={() => setProfileOpen((s) => !s)}
-              className="flex items-center gap-2 hover:bg-gray-50 rounded px-2 py-1 transition-colors"
+              className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ipe/60"
+              aria-expanded={profileOpen}
+              aria-haspopup="true"
+              aria-label="Menu do perfil"
             >
-              <div className="w-8 h-8 bg-[#10512D] text-white rounded-full flex items-center justify-center font-ubuntu font-bold text-sm">
-                {firstName(user?.name ?? "").charAt(0).toUpperCase()}
-              </div>
-              <span className="hidden sm:block font-ubuntu font-medium text-sm text-[#5A5858] max-w-[120px] truncate">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ipe font-sans text-sm font-bold text-tinta">
+                {firstName(user?.name ?? "")
+                  .charAt(0)
+                  .toUpperCase()}
+              </span>
+              <span className="hidden max-w-[120px] truncate font-sans text-sm font-medium text-white sm:block">
                 {user?.name}
               </span>
-              <svg className="w-4 h-4 text-[#5A5858]" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
-              </svg>
+              <ChevronDown className="h-4 w-4 text-white/70" aria-hidden />
             </button>
 
             {profileOpen && (
-              <div className="absolute right-0 top-full mt-2 w-44 bg-white border border-[#E6E6E6] rounded-lg shadow-md z-30 overflow-hidden">
+              <div className={cn(POPOVER, "w-48")}>
                 <Link
                   to="/perfil"
                   onClick={() => setProfileOpen(false)}
-                  className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#5A5858] hover:bg-gray-50"
+                  className="flex items-center gap-2.5 px-4 py-3 font-sans text-sm text-apoio hover:bg-black/[0.03]"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  Ver Perfil
+                  <User className="h-4 w-4" aria-hidden />
+                  Ver perfil
                 </Link>
                 <Link
                   to="/notificacoes"
                   onClick={() => setProfileOpen(false)}
-                  className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#5A5858] hover:bg-gray-50"
+                  className="flex items-center gap-2.5 px-4 py-3 font-sans text-sm text-apoio hover:bg-black/[0.03]"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                  </svg>
+                  <Bell className="h-4 w-4" aria-hidden />
                   Notificações
                   {unreadCount > 0 && (
-                    <span className="ml-auto bg-red-500 text-white text-[10px] rounded-full px-1.5">
+                    <span className="ml-auto rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
                       {unreadCount}
                     </span>
                   )}
                 </Link>
-                <hr className="border-[#EEE]" />
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                  className="flex w-full items-center gap-2.5 border-t border-black/5 px-4 py-3 font-sans text-sm text-red-600 hover:bg-red-50"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
+                  <LogOut className="h-4 w-4" aria-hidden />
                   Sair
                 </button>
               </div>

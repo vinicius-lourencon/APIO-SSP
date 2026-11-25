@@ -96,29 +96,30 @@ export const registerSchema = z.object({
   semestre: z.coerce.number().int().min(1).max(10).optional(),
   siape: z.string().max(20).optional(),
   departamento: z.string().max(150).optional(),
-}).refine(
-  (data) => emailMatchesRole(data.email, data.role),
-  (data) => ({
+}).superRefine((data, ctx) => {
+  if (emailMatchesRole(data.email, data.role)) return;
+  ctx.addIssue({
+    code: "custom",
     message:
       data.role === "professor"
         ? `Professores devem usar um e-mail ${ROLE_EMAIL_DOMAINS.professor}.`
         : `Alunos devem usar um e-mail ${ROLE_EMAIL_DOMAINS.aluno}.`,
     path: ["email"],
-  }),
-);
+  });
+});
 
 export const projectSchema = z.object({
   title: z.string().min(3, "Título deve ter no mínimo 3 caracteres.").max(300),
-  description: z.string().max(5000).default(""),
-  objectives: z.string().max(5000).default(""),
-  impact: z.string().max(2000).default(""),
-  public_target: z.string().max(500).default(""),
-  schedule: z.string().max(2000).default(""),
-  resources: z.string().max(2000).default(""),
-  area: z.string().max(150).default(""),
-  keywords: z.array(z.string().max(80)).default([]),
-  proposal_type: z.string().max(100).default(""),
-  duration: z.string().max(100).default(""),
+  description: z.string().max(5000),
+  objectives: z.string().max(5000),
+  impact: z.string().max(2000),
+  public_target: z.string().max(500),
+  schedule: z.string().max(2000),
+  resources: z.string().max(2000),
+  area: z.string().max(150),
+  keywords: z.array(z.string().max(80)),
+  proposal_type: z.string().max(100),
+  duration: z.string().max(100),
 });
 
 export const meetingRequestSchema = z.object({
@@ -134,7 +135,7 @@ export const meetingRequestSchema = z.object({
 export const evaluationSchema = z.object({
   project_id: z.number().int().positive(),
   opinion: z.string().max(5000).default(""),
-  feedback: z.string({ required_error: "O feedback é obrigatório." }).trim().min(1, "O feedback é obrigatório.").max(5000),
+  feedback: z.string({ error: "O feedback é obrigatório." }).trim().min(1, "O feedback é obrigatório.").max(5000),
   decision: z.enum(["aprovado", "reprovado", "ajustes_solicitados"]),
   justification: z.string().max(5000).default(""),
 });
