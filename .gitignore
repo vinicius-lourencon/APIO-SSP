@@ -34,3 +34,6 @@ dist-ssr
 
 # Uploaded files
 uploads/
+
+# Backups (pnpm backup / publicar-sisapa.bat)
+backups/

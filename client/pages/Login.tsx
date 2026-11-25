@@ -369,19 +369,22 @@ export default function Login() {
                   >
                     {loading ? "Entrando..." : "Entrar"}
                   </button>
-                  <p className="text-center text-xs text-fraco">
-                    Demo:{" "}
-                    <button
-                      type="button"
-                      className="font-medium text-mata underline-offset-4 hover:underline"
-                      onClick={() => {
-                        setLoginEmail(DEMO_EMAILS[role]);
-                        setLoginPassword("senha123");
-                      }}
-                    >
-                      preencher dados de demo
-                    </button>
-                  </p>
+                  {/* Demo users only exist in `pnpm dev`; the production build drops this block */}
+                  {import.meta.env.DEV && (
+                    <p className="text-center text-xs text-fraco">
+                      Demo:{" "}
+                      <button
+                        type="button"
+                        className="font-medium text-mata underline-offset-4 hover:underline"
+                        onClick={() => {
+                          setLoginEmail(DEMO_EMAILS[role]);
+                          setLoginPassword("senha123");
+                        }}
+                      >
+                        preencher dados de demo
+                      </button>
+                    </p>
+                  )}
                 </form>
               )}
 
