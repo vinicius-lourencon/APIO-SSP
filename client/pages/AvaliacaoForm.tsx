@@ -1,5 +1,6 @@
 import { useState, useEffect, FormEvent } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { toast } from "sonner";
 import { m } from "motion/react";
 import { AlertTriangle, Check } from "lucide-react";
 import {
@@ -112,7 +113,9 @@ export default function AvaliacaoForm() {
         decision,
         justification: justification.trim() || undefined,
       });
-      navigate("/avaliador");
+      toast.success("Avaliação registrada. O aluno foi notificado.");
+      // Abre o painel já no bloco do resultado, para o projeto não "sumir"
+      navigate("/avaliador", { state: { tab: decision } });
     } catch (err) {
       setFormError(
         err instanceof ApiError ? err.message : "Erro ao enviar avaliação.",

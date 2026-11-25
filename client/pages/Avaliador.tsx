@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { m } from "motion/react";
 import {
@@ -13,6 +13,7 @@ import {
   Paperclip,
   Search,
   User,
+  XCircle,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -28,32 +29,42 @@ import { NextStepNote, ProjectTrail } from "@/components/ProjectTrail";
 import { STATUS_THEME, nextStep } from "@/lib/status-theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { getProjects, assignProject, getEvaluationStats } from "@/lib/api";
+import { getProjects, assignProject } from "@/lib/api";
 import { ApiError } from "@/lib/api";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { cn } from "@/lib/utils";
 import { EASE, fadeUp } from "@/lib/motion";
-import type { EvaluationStats, Project } from "@shared/api";
+import type { Project } from "@shared/api";
 import { firstName } from "@shared/api";
 
-type Tab = "pendentes" | "todos";
+type Tab =
+  "pendentes" | "aprovado" | "ajustes_solicitados" | "reprovado" | "todos";
 
 function StatTile({
   icon: Icon,
   label,
   value,
   tone,
+  active,
+  onClick,
 }: {
   icon: LucideIcon;
   label: string;
   value: number;
   tone: string;
+  active: boolean;
+  onClick: () => void;
 }) {
   return (
-    <div
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
       className={cn(
-        "relative flex items-center gap-3 overflow-hidden rounded-2xl p-4 shadow-[0_14px_30px_-18px_rgb(20_38_28/0.6)] sm:gap-4 sm:p-5",
+        "relative flex items-center gap-3 overflow-hidden rounded-2xl p-4 text-left shadow-[0_14px_30px_-18px_rgb(20_38_28/0.6)] transition-[opacity,transform] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ipe/70 motion-reduce:hover:translate-y-0 sm:gap-4 sm:p-5",
         tone,
+        active &&
+          "-translate-y-0.5 ring-4 ring-white ring-offset-2 ring-offset-mata/50",
       )}
     >
       <span
@@ -63,13 +74,15 @@ function StatTile({
       <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30">
         <Icon className="h-5 w-5" aria-hidden />
       </span>
-      <div className="relative">
-        <p className="font-display text-3xl font-bold leading-none tabular-nums">
+      <span className="relative">
+        <span className="block font-display text-3xl font-bold leading-none tabular-nums">
           {value}
-        </p>
-        <p className="mt-1 text-sm font-medium opacity-90">{label}</p>
-      </div>
-    </div>
+        </span>
+        <span className="mt-1 block text-sm font-medium opacity-90">
+          {label}
+        </span>
+      </span>
+    </button>
   );
 }
 
@@ -77,28 +90,19 @@ export default function Avaliador() {
   const { user } = useAuth();
   const confirm = useConfirm();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [stats, setStats] = useState<EvaluationStats>({
-    total: 0,
-    pending: 0,
-    approved: 0,
-    adjustments: 0,
-  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [assignLoading, setAssignLoading] = useState<number | null>(null);
-  const [tab, setTab] = useState<Tab>("pendentes");
+  const location = useLocation();
+  const initialTab = (location.state as { tab?: Tab } | null)?.tab;
+  const [tab, setTab] = useState<Tab>(initialTab ?? "pendentes");
   const debouncedSearch = useDebouncedValue(search.trim());
 
   const fetchData = useCallback(async () => {
     setError("");
     try {
-      const [projectsData, statsData] = await Promise.all([
-        getProjects({ search: debouncedSearch || undefined }),
-        getEvaluationStats(),
-      ]);
-      setProjects(projectsData);
-      setStats(statsData);
+      setProjects(await getProjects({ search: debouncedSearch || undefined }));
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Erro ao carregar dados.",
@@ -153,22 +157,70 @@ export default function Avaliador() {
   const emAnalise = projects.filter(
     (p) => p.status === "em_analise" && p.professor_id === user?.id,
   );
-  const displayedProjects =
-    tab === "pendentes" ? [...pendentes, ...emAnalise] : projects;
+  const mine = (status: Project["status"]) =>
+    projects.filter((p) => p.status === status && p.professor_id === user?.id);
+  const groups: Record<Tab, Project[]> = {
+    pendentes: [...pendentes, ...emAnalise],
+    aprovado: mine("aprovado"),
+    ajustes_solicitados: mine("ajustes_solicitados"),
+    reprovado: mine("reprovado"),
+    todos: projects,
+  };
+  const displayedProjects = groups[tab];
 
   const query = search.trim().toLowerCase();
   const filtered = displayedProjects.filter((p) =>
     query ? p.title.toLowerCase().includes(query) : true,
   );
 
-  const tabs: { value: Tab; label: string; count?: number }[] = [
-    {
-      value: "pendentes",
-      label: "Para avaliar",
-      count: pendentes.length + emAnalise.length,
-    },
-    { value: "todos", label: "Todos os projetos" },
-  ];
+  const tiles: { value: Tab; label: string; icon: LucideIcon; tone: string }[] =
+    [
+      {
+        value: "pendentes",
+        label: "Para avaliar",
+        icon: Clock,
+        tone: "bg-gradient-to-br from-[#FFD23F] to-[#F2A900] text-tinta",
+      },
+      {
+        value: "aprovado",
+        label: "Aprovados",
+        icon: CheckCircle2,
+        tone: "bg-gradient-to-br from-[#2EA866] to-[#1F8F52] text-white",
+      },
+      {
+        value: "ajustes_solicitados",
+        label: "Ajustes",
+        icon: AlertTriangle,
+        tone: "bg-gradient-to-br from-[#FB8A3C] to-[#EA580C] text-white",
+      },
+      {
+        value: "reprovado",
+        label: "Reprovados",
+        icon: XCircle,
+        tone: "bg-gradient-to-br from-red-500 to-red-700 text-white",
+      },
+      {
+        value: "todos",
+        label: "Todos",
+        icon: ClipboardList,
+        tone: "bg-gradient-to-br from-[#0B4D2D] to-[#17864D] text-white",
+      },
+    ];
+  const describe = (n: number): string => {
+    const one = n === 1;
+    switch (tab) {
+      case "pendentes":
+        return `${one ? "projeto aguardando" : "projetos aguardando"} sua avaliação`;
+      case "aprovado":
+        return `${one ? "projeto aprovado" : "projetos aprovados"} por você`;
+      case "ajustes_solicitados":
+        return `${one ? "projeto" : "projetos"} com ajustes pedidos por você`;
+      case "reprovado":
+        return `${one ? "projeto reprovado" : "projetos reprovados"} por você`;
+      default:
+        return one ? "projeto no total" : "projetos no total";
+    }
+  };
 
   return (
     <PageShell
@@ -184,73 +236,32 @@ export default function Avaliador() {
       }
     >
       <m.div
-        className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+        className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+        role="group"
+        aria-label="Filtrar projetos"
         {...fadeUp(0.08)}
       >
-        <StatTile
-          icon={ClipboardList}
-          label="Avaliados"
-          value={stats.total}
-          tone="bg-gradient-to-br from-[#0B4D2D] to-[#17864D] text-white"
-        />
-        <StatTile
-          icon={Clock}
-          label="Pendentes"
-          value={stats.pending}
-          tone="bg-gradient-to-br from-[#FFD23F] to-[#F2A900] text-tinta"
-        />
-        <StatTile
-          icon={CheckCircle2}
-          label="Aprovados"
-          value={stats.approved}
-          tone="bg-gradient-to-br from-[#2EA866] to-[#1F8F52] text-white"
-        />
-        <StatTile
-          icon={AlertTriangle}
-          label="Ajustes"
-          value={stats.adjustments}
-          tone="bg-gradient-to-br from-[#FB8A3C] to-[#EA580C] text-white"
-        />
+        {tiles.map(({ value, label, icon, tone }) => (
+          <StatTile
+            key={value}
+            icon={icon}
+            label={label}
+            value={groups[value].length}
+            tone={tone}
+            active={tab === value}
+            onClick={() => setTab(value)}
+          />
+        ))}
       </m.div>
 
       <m.div
-        className="mt-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
+        className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
         {...fadeUp(0.14)}
       >
-        <div
-          className="inline-flex w-fit rounded-full border border-linha bg-white p-1"
-          role="tablist"
-        >
-          {tabs.map(({ value, label, count }) => {
-            const active = tab === value;
-            return (
-              <button
-                key={value}
-                role="tab"
-                aria-selected={active}
-                onClick={() => setTab(value)}
-                className={cn(
-                  "inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-mata/15",
-                  active
-                    ? "bg-mata text-white"
-                    : "text-apoio hover:bg-mata-claro hover:text-mata",
-                )}
-              >
-                {label}
-                {count != null && count > 0 && (
-                  <span
-                    className={cn(
-                      "rounded-full px-1.5 text-xs tabular-nums",
-                      active ? "bg-white/20 text-white" : "bg-ipe text-tinta",
-                    )}
-                  >
-                    {count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        <p className="text-sm text-apoio">
+          <strong className="text-tinta">{filtered.length}</strong>{" "}
+          {describe(filtered.length)}
+        </p>
 
         <label className="relative block w-full md:w-72">
           <span className="sr-only">Buscar projeto pelo título</span>
@@ -279,12 +290,12 @@ export default function Avaliador() {
             title={
               tab === "pendentes"
                 ? "Nada aguardando avaliação"
-                : "Nenhum projeto encontrado"
+                : "Nenhum projeto aqui"
             }
             description={
               tab === "pendentes"
                 ? "Quando um aluno enviar um projeto, ele aparece aqui."
-                : undefined
+                : "Os projetos que você avaliar aparecem no bloco do resultado."
             }
           />
         ) : (
