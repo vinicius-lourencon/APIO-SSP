@@ -61,9 +61,10 @@ export default function Profile() {
         ];
 
   return (
-    <PageShell width="max-w-3xl">
-      <BackLink to={backPath}>Voltar</BackLink>
-
+    <PageShell
+      width="max-w-3xl"
+      hero={<BackLink to={backPath}>Voltar</BackLink>}
+    >
       <m.div
         className={cn(
           "flex flex-col items-center gap-6 rounded-3xl p-6 sm:flex-row sm:items-center sm:p-8",
@@ -71,15 +72,15 @@ export default function Profile() {
         )}
         {...fadeUp()}
       >
-        <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-[#10512D] text-4xl font-bold text-white">
+        <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-mata text-4xl font-bold text-white">
           {initial}
         </span>
         <div className="min-w-0 flex-1 text-center sm:text-left">
-          <h1 className="text-2xl font-bold tracking-tight text-[#10231A] sm:text-3xl">
+          <h1 className="text-2xl font-bold tracking-tight text-tinta sm:text-3xl">
             {user.name}
           </h1>
-          <p className="mt-1 text-[#5A5858]">{user.email}</p>
-          <span className="mt-3 inline-flex rounded-full bg-[#10512D]/10 px-3 py-1 text-xs font-medium text-[#10512D]">
+          <p className="mt-1 text-apoio">{user.email}</p>
+          <span className="mt-3 inline-flex rounded-full bg-mata/10 px-3 py-1 text-xs font-medium text-mata">
             {roleLabel}
           </span>
         </div>
@@ -101,18 +102,16 @@ export default function Profile() {
       </m.div>
 
       <m.section className={cn("mt-6 p-6 sm:p-8", surface)} {...fadeUp(0.1)}>
-        <h2 className="mb-6 text-base font-semibold text-[#10512D]">
+        <h2 className="mb-6 text-base font-semibold text-mata">
           Informações do perfil
         </h2>
         <dl className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {fields.map(({ label, value }) => (
             <div key={label}>
-              <dt className="text-xs uppercase tracking-wide text-[#8A8888]">
-                {label}
-              </dt>
-              <dd className="mt-1 font-medium text-[#2B2A2A]">
+              <dt className="text-sm font-medium text-apoio">{label}</dt>
+              <dd className="mt-1 font-medium text-tinta">
                 {value || (
-                  <span className="font-normal italic text-[#B5B3B3]">
+                  <span className="font-normal italic text-fraco">
                     Não informado
                   </span>
                 )}
@@ -123,13 +122,11 @@ export default function Profile() {
       </m.section>
 
       <m.section className={cn("mt-6 p-6 sm:p-8", surface)} {...fadeUp(0.16)}>
-        <h2 className="mb-4 text-base font-semibold text-[#10512D]">
-          Segurança
-        </h2>
+        <h2 className="mb-4 text-base font-semibold text-mata">Segurança</h2>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="font-medium text-[#2B2A2A]">Senha</p>
-            <p className="mt-0.5 text-sm text-[#6B6868]">
+            <p className="font-medium text-tinta">Senha</p>
+            <p className="mt-0.5 text-sm text-apoio">
               A troca de senha ainda não está disponível.
             </p>
           </div>

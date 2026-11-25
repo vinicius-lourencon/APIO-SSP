@@ -22,9 +22,11 @@ export function StepIndicator({
             <span
               className={cn(
                 "flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold",
-                done && "bg-[#10512D]/15 text-[#10512D]",
-                active && "bg-[#10512D] text-white",
-                !done && !active && "bg-black/5 text-[#8A8888]",
+                done && "bg-white/20 text-white",
+                active && "bg-ipe text-tinta ring-4 ring-ipe/25",
+                !done &&
+                  !active &&
+                  "bg-white/10 text-white/60 ring-1 ring-white/20",
               )}
             >
               {done ? <Check className="h-3.5 w-3.5" aria-hidden /> : step}
@@ -32,7 +34,7 @@ export function StepIndicator({
             <span
               className={cn(
                 "text-sm",
-                active ? "font-medium text-[#10512D]" : "text-[#6B6868]",
+                active ? "font-semibold text-white" : "text-white/70",
               )}
             >
               {label}
@@ -45,11 +47,11 @@ export function StepIndicator({
             className="flex items-center gap-3"
             aria-current={active ? "step" : undefined}
           >
-            {index > 0 && <span className="h-px w-6 bg-black/15" aria-hidden />}
+            {index > 0 && <span className="h-px w-8 bg-white/30" aria-hidden />}
             {done && detailsHref ? (
               <Link
                 to={detailsHref}
-                className="flex items-center gap-2 hover:underline"
+                className="flex items-center gap-2 rounded-full underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ipe/60"
               >
                 {content}
               </Link>

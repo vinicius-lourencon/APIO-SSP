@@ -143,21 +143,28 @@ export default function GeneralInfo() {
   }
 
   return (
-    <PageShell width="max-w-3xl">
-      <PageHeading
-        title="Informações gerais"
-        subtitle="Último passo: conte mais sobre o projeto."
-      />
-
-      <m.div className="mt-6" {...fadeUp(0.06)}>
-        <StepIndicator
-          current={2}
-          detailsHref={`/novo-projeto?id=${projectId}`}
-        />
-      </m.div>
-
+    <PageShell
+      width="max-w-3xl"
+      hero={
+        <>
+          <PageHeading
+            title="Informações gerais"
+            subtitle="Último passo: conte mais sobre o projeto."
+          />
+          <m.div className="mt-6" {...fadeUp(0.06)}>
+            <StepIndicator
+              current={2}
+              detailsHref={`/novo-projeto?id=${projectId}`}
+            />
+          </m.div>
+        </>
+      }
+    >
       <m.div
-        className={cn("mt-6 rounded-3xl p-6 sm:p-8", surface)}
+        className={cn(
+          "relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#E3F2E7] to-[#F6FBF7] p-6 pt-8 sm:p-8 sm:pt-10 before:absolute before:inset-x-0 before:top-0 before:h-1.5 before:bg-gradient-to-r before:from-mata before:via-folha before:to-ipe",
+          surface,
+        )}
         {...fadeUp(0.12)}
       >
         {error && (
@@ -241,22 +248,22 @@ export default function GeneralInfo() {
           </div>
 
           <div>
-            <p className="mb-2 text-sm font-medium text-[#3D3B3B]">
+            <p className="mb-2 text-sm font-medium text-apoio">
               Palavras-chave{" "}
-              <span className="text-xs font-normal text-[#8A8888]">até 10</span>
+              <span className="text-xs font-normal text-fraco">até 10</span>
             </p>
             {keywords.length > 0 && (
               <ul className="mb-3 flex flex-wrap gap-2">
                 {keywords.map((kw, i) => (
                   <li
                     key={kw}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[#10512D]/10 py-1 pl-3 pr-1.5 text-sm font-medium text-[#10512D]"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-mata/10 py-1 pl-3 pr-1.5 text-sm font-medium text-mata"
                   >
                     {kw}
                     <button
                       type="button"
                       onClick={() => removeKeyword(i)}
-                      className="flex h-5 w-5 items-center justify-center rounded-full transition-colors hover:bg-[#10512D]/15"
+                      className="flex h-5 w-5 items-center justify-center rounded-full transition-colors hover:bg-mata/15"
                       aria-label={`Remover ${kw}`}
                     >
                       <X className="h-3 w-3" aria-hidden />

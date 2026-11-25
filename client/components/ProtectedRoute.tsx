@@ -18,8 +18,8 @@ export default function ProtectedRoute({ children, requiredRole }: Props) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-[#10512D] border-t-transparent rounded-full animate-spin" />
-          <p className="font-ubuntu text-[#5A5858]">Carregando...</p>
+          <div className="w-10 h-10 border-4 border-mata border-t-transparent rounded-full animate-spin" />
+          <p className="font-sans text-apoio">Carregando...</p>
         </div>
       </div>
     );
@@ -27,7 +27,7 @@ export default function ProtectedRoute({ children, requiredRole }: Props) {
 
   if (!user && sessionError) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#F6F8F6] p-6 font-ubuntu">
+      <main className="flex min-h-screen items-center justify-center bg-fundo p-6 font-sans">
         <div className="w-full max-w-md" role="alert">
           <EmptyState
             icon={WifiOff}
@@ -35,11 +35,19 @@ export default function ProtectedRoute({ children, requiredRole }: Props) {
             description={`${sessionError} Você continua conectado.`}
             action={
               <div className="flex flex-wrap justify-center gap-3">
-                <button type="button" onClick={retrySession} className={primaryButton}>
+                <button
+                  type="button"
+                  onClick={retrySession}
+                  className={primaryButton}
+                >
                   <RefreshCw className="h-4 w-4" aria-hidden />
                   Tentar novamente
                 </button>
-                <button type="button" onClick={logout} className={secondaryButton}>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className={secondaryButton}
+                >
                   Sair da conta
                 </button>
               </div>
@@ -55,7 +63,8 @@ export default function ProtectedRoute({ children, requiredRole }: Props) {
   }
 
   if (requiredRole && user.role !== requiredRole) {
-    const redirect = user.role === "professor" ? "/avaliador" : "/meus-projetos";
+    const redirect =
+      user.role === "professor" ? "/avaliador" : "/meus-projetos";
     return <Navigate to={redirect} replace />;
   }
 

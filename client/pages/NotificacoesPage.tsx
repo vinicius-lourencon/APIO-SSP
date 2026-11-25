@@ -2,7 +2,18 @@ import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { m } from "motion/react";
-import { Bell, BellOff, Check, CheckCheck, Trash2 } from "lucide-react";
+import {
+  BadgeCheck,
+  Bell,
+  BellOff,
+  Check,
+  CheckCheck,
+  Info,
+  PencilLine,
+  Trash2,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
 import { PageHeading, PageShell, surface } from "@/components/layout/PageShell";
 import { EmptyState, ErrorState, ListSkeleton } from "@/components/PageStates";
 import { useConfirm } from "@/components/ConfirmDialog";
@@ -17,32 +28,42 @@ import { cn } from "@/lib/utils";
 import { EASE, fadeUp } from "@/lib/motion";
 import type { Notification } from "@shared/api";
 
-const TYPE_STYLES: Record<string, { dot: string; tag: string; label: string }> =
-  {
-    success: {
-      dot: "bg-green-500",
-      tag: "bg-green-100 text-green-700",
-      label: "Aprovação",
-    },
-    warning: {
-      dot: "bg-orange-400",
-      tag: "bg-orange-100 text-orange-700",
-      label: "Atenção",
-    },
-    error: {
-      dot: "bg-red-500",
-      tag: "bg-red-100 text-red-700",
-      label: "Reprovação",
-    },
-    info: {
-      dot: "bg-blue-400",
-      tag: "bg-blue-100 text-blue-700",
-      label: "Informação",
-    },
-  };
+const TYPE_STYLES: Record<
+  string,
+  { icon: LucideIcon; chip: string; wash: string; tag: string; label: string }
+> = {
+  success: {
+    icon: BadgeCheck,
+    chip: "bg-gradient-to-br from-[#2EA866] to-[#1F8F52] text-white",
+    wash: "from-folha-claro",
+    tag: "bg-folha-claro text-mata",
+    label: "Aprovação",
+  },
+  warning: {
+    icon: PencilLine,
+    chip: "bg-gradient-to-br from-[#FB8A3C] to-[#EA580C] text-white",
+    wash: "from-orange-50",
+    tag: "bg-orange-100 text-orange-800",
+    label: "Atenção",
+  },
+  error: {
+    icon: XCircle,
+    chip: "bg-gradient-to-br from-red-500 to-red-600 text-white",
+    wash: "from-red-50",
+    tag: "bg-red-100 text-red-700",
+    label: "Reprovação",
+  },
+  info: {
+    icon: Info,
+    chip: "bg-gradient-to-br from-sky-500 to-sky-600 text-white",
+    wash: "from-sky-50",
+    tag: "bg-sky-100 text-sky-800",
+    label: "Informação",
+  },
+};
 
 const iconButton =
-  "flex h-9 w-9 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#10512D]/15 disabled:opacity-50";
+  "flex h-9 w-9 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-mata/15 disabled:opacity-50";
 
 type Filter = "all" | "unread";
 
@@ -137,29 +158,32 @@ export default function NotificacoesPage() {
   ];
 
   return (
-    <PageShell width="max-w-3xl">
-      <PageHeading
-        title="Notificações"
-        subtitle={
-          unreadCount > 0
-            ? `${unreadCount} não lida${unreadCount !== 1 ? "s" : ""}`
-            : "Você está em dia."
-        }
-        action={
-          unreadCount > 0 && (
-            <button
-              onClick={handleMarkAllRead}
-              className="inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-medium text-[#10512D] transition-colors hover:bg-[#10512D]/5"
-            >
-              <CheckCheck className="h-4 w-4" aria-hidden />
-              Marcar todas como lidas
-            </button>
-          )
-        }
-      />
-
+    <PageShell
+      width="max-w-3xl"
+      hero={
+        <PageHeading
+          title="Notificações"
+          subtitle={
+            unreadCount > 0
+              ? `${unreadCount} não lida${unreadCount !== 1 ? "s" : ""}`
+              : "Você está em dia."
+          }
+          action={
+            unreadCount > 0 && (
+              <button
+                onClick={handleMarkAllRead}
+                className="inline-flex h-10 items-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-white ring-1 ring-white/20 transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ipe/60"
+              >
+                <CheckCheck className="h-4 w-4" aria-hidden />
+                Marcar todas como lidas
+              </button>
+            )
+          }
+        />
+      }
+    >
       <m.div
-        className="mt-8 inline-flex rounded-full border border-black/10 bg-white/80 p-1"
+        className="inline-flex rounded-full border border-linha bg-white p-1 shadow-sm"
         role="tablist"
         {...fadeUp(0.08)}
       >
@@ -172,10 +196,8 @@ export default function NotificacoesPage() {
               aria-selected={active}
               onClick={() => setFilter(value)}
               className={cn(
-                "inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#10512D]/15",
-                active
-                  ? "bg-[#10512D] text-white"
-                  : "text-[#4A4848] hover:text-[#10512D]",
+                "inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-mata/15",
+                active ? "bg-mata text-white" : "text-apoio hover:text-mata",
               )}
             >
               {label}
@@ -226,29 +248,41 @@ export default function NotificacoesPage() {
                     delay: Math.min(index, 6) * 0.05,
                   }}
                   className={cn(
-                    "flex items-start gap-3 p-4 sm:p-5",
+                    "relative flex items-start gap-3.5 p-4 sm:p-5",
                     surface,
-                    notif.read && "opacity-70",
+                    !notif.read &&
+                      cn(
+                        "bg-gradient-to-r via-white via-50% to-white",
+                        style.wash,
+                      ),
+                    notif.read && "opacity-75",
                   )}
                 >
                   <span
                     className={cn(
-                      "mt-2 h-2 w-2 shrink-0 rounded-full",
-                      notif.read ? "bg-transparent" : style.dot,
+                      "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm",
+                      notif.read ? "bg-fundo text-apoio" : style.chip,
                     )}
-                    aria-label={notif.read ? undefined : "Não lida"}
-                  />
+                  >
+                    <style.icon className="h-5 w-5" aria-hidden />
+                    {!notif.read && (
+                      <span
+                        className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-ipe ring-2 ring-white"
+                        aria-label="Não lida"
+                      />
+                    )}
+                  </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm leading-relaxed text-[#2B2A2A]">
+                    <p className="text-sm leading-relaxed text-tinta">
                       {notif.message}
                     </p>
                     {notif.project_title && (
-                      <p className="mt-1 text-xs text-[#6B6868]">
+                      <p className="mt-1 text-xs text-apoio">
                         Projeto:{" "}
                         {notif.project_id ? (
                           <Link
                             to={`/projetos/${notif.project_id}`}
-                            className="font-medium text-[#10512D] hover:underline"
+                            className="font-medium text-mata hover:underline"
                           >
                             {notif.project_title}
                           </Link>
@@ -257,7 +291,7 @@ export default function NotificacoesPage() {
                         )}
                       </p>
                     )}
-                    <p className="mt-2 flex items-center gap-3 text-xs text-[#8A8888]">
+                    <p className="mt-2 flex items-center gap-3 text-xs text-fraco">
                       <span
                         className={cn(
                           "rounded-full px-2 py-0.5 font-medium",
@@ -277,10 +311,7 @@ export default function NotificacoesPage() {
                     {!notif.read && (
                       <button
                         onClick={() => handleMarkRead(notif.id)}
-                        className={cn(
-                          iconButton,
-                          "text-[#10512D] hover:bg-[#10512D]/10",
-                        )}
+                        className={cn(iconButton, "text-mata hover:bg-mata/10")}
                         title="Marcar como lida"
                         aria-label="Marcar como lida"
                       >

@@ -90,10 +90,10 @@ export default function MeetingRequestDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !sending && onOpenChange(next)}>
-      <DialogContent className="border-black/5 bg-white font-ubuntu sm:max-w-lg">
+      <DialogContent className="border-black/5 bg-white font-sans sm:max-w-lg">
         <form onSubmit={handleSubmit} className="space-y-4">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-[#10231A]">
+            <DialogTitle className="text-xl font-semibold text-tinta">
               Solicitar reunião
             </DialogTitle>
             <DialogDescription>
@@ -103,10 +103,8 @@ export default function MeetingRequestDialog({
           </DialogHeader>
 
           <div>
-            <p className="mb-2 text-sm font-medium text-[#3D3B3B]">
-              Destinatário
-            </p>
-            <p className="break-all rounded-xl border border-black/5 bg-black/[0.03] px-4 py-2.5 text-sm text-[#2B2A2A]">
+            <p className="mb-2 text-sm font-medium text-apoio">Destinatário</p>
+            <p className="break-all rounded-xl border border-black/5 bg-black/[0.03] px-4 py-2.5 text-sm text-tinta">
               {studentName} &lt;{studentEmail}&gt;
             </p>
           </div>
@@ -135,7 +133,7 @@ export default function MeetingRequestDialog({
             </FormField>
           </div>
           {proposedAt && (
-            <p className="-mt-2 text-xs text-[#10512D]">
+            <p className="-mt-2 text-xs text-mata">
               A data informada será adicionada ao cronograma do projeto.
             </p>
           )}

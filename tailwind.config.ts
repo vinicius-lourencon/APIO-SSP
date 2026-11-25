@@ -50,7 +50,16 @@ export default {
         },
         "sisapa-green": "hsl(var(--sisapa-green))",
         "sisapa-action": "hsl(var(--sisapa-green-action))",
-        "text-gray": "#5A5858",
+        "text-gray": "#5B6A61",
+        // Paleta SISAPA: verde do IFMS + amarelo do ipê (símbolo do MS)
+        mata: { DEFAULT: "#0E5A35", escuro: "#0A4428", claro: "#E3F1E8" },
+        folha: { DEFAULT: "#2EA866", claro: "#DDF5E7" },
+        ipe: { DEFAULT: "#F5B700", escuro: "#8A5A00", claro: "#FFF3CC" },
+        tinta: "#14261C",
+        apoio: "#56655C",
+        fraco: "#87948C",
+        fundo: "#EEF5EF",
+        linha: "#DCE7DD",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -63,8 +72,8 @@ export default {
         },
       },
       fontFamily: {
-        ubuntu: ["Ubuntu", "system-ui", "sans-serif"],
-        kumbh: ["Kumbh Sans", "system-ui", "sans-serif"],
+        sans: ["Figtree Variable", "system-ui", "sans-serif"],
+        display: ["Bricolage Grotesque Variable", "Figtree Variable", "system-ui", "sans-serif"],
       },
       borderRadius: {
         lg: "var(--radius)",

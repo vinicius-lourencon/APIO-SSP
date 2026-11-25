@@ -22,6 +22,8 @@ import {
 import { BackLink } from "@/components/BackLink";
 import { ErrorState, ListSkeleton } from "@/components/PageStates";
 import { StatusBadge } from "@/components/StatusBadge";
+import { NextStepNote, ProjectTrail } from "@/components/ProjectTrail";
+import { STATUS_THEME, nextStep } from "@/lib/status-theme";
 import MeetingRequestDialog from "@/components/MeetingRequestDialog";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useAuth } from "@/contexts/AuthContext";
@@ -47,7 +49,7 @@ const HISTORY_ICONS: Record<string, LucideIcon> = {
 };
 
 const DECISION_STYLES = {
-  aprovado: { label: "Aprovado", box: "bg-green-50 text-green-800" },
+  aprovado: { label: "Aprovado", box: "bg-folha-claro text-mata" },
   reprovado: { label: "Reprovado", box: "bg-red-50 text-red-800" },
   ajustes_solicitados: {
     label: "Ajustes solicitados",
@@ -71,44 +73,16 @@ function Section({
   className?: string;
 }) {
   return (
-    <section className={cn("p-6", surface, className)}>
-      <h2 className="mb-4 text-base font-semibold text-[#10512D]">{title}</h2>
-      {children}
+    <section className={cn("overflow-hidden", surface, className)}>
+      <h2 className="flex items-center gap-2.5 border-b border-[#CFE2D4] bg-gradient-to-r from-[#DDEFE2] to-[#EEF7F0] px-6 py-3.5 text-lg font-semibold text-mata">
+        <span
+          aria-hidden
+          className="h-5 w-1.5 rounded-full bg-gradient-to-b from-folha to-mata"
+        />
+        {title}
+      </h2>
+      <div className="p-6">{children}</div>
     </section>
-  );
-}
-
-function ProgressRing({ value }: { value: number }) {
-  return (
-    <div
-      className="relative h-20 w-20 shrink-0"
-      role="img"
-      aria-label={`Progresso do projeto: ${value}%`}
-    >
-      <svg className="h-20 w-20 -rotate-90" viewBox="0 0 36 36" aria-hidden>
-        <circle
-          cx="18"
-          cy="18"
-          r="15.9155"
-          fill="none"
-          stroke="rgb(0 0 0 / 0.06)"
-          strokeWidth="3"
-        />
-        <circle
-          cx="18"
-          cy="18"
-          r="15.9155"
-          fill="none"
-          stroke="#10512D"
-          strokeWidth="3"
-          strokeDasharray={`${value} ${100 - value}`}
-          strokeLinecap="round"
-        />
-      </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-lg font-bold tabular-nums text-[#10512D]">
-        {value}%
-      </span>
-    </div>
   );
 }
 
@@ -318,17 +292,22 @@ export default function ProjectDetail() {
   ].filter((s) => s.value);
 
   return (
-    <PageShell>
-      <BackLink to={backPath}>Voltar</BackLink>
-
-      <m.header className={cn("rounded-3xl p-6 sm:p-8", surface)} {...fadeUp()}>
+    <PageShell hero={<BackLink to={backPath}>Voltar</BackLink>}>
+      <m.header
+        className={cn(
+          "rounded-3xl bg-gradient-to-b to-white to-[75%] p-6 sm:p-8",
+          surface,
+          STATUS_THEME[project.status].wash,
+        )}
+        {...fadeUp()}
+      >
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1">
             <StatusBadge status={project.status} />
-            <h1 className="mt-3 text-2xl font-bold leading-tight tracking-tight text-[#10231A] sm:text-3xl">
+            <h1 className="mt-3 text-2xl font-bold leading-tight tracking-tight text-tinta sm:text-3xl">
               {project.title}
             </h1>
-            <p className="mt-3 flex flex-wrap gap-x-2 text-sm text-[#6B6868]">
+            <p className="mt-3 flex flex-wrap gap-x-2 text-sm text-apoio">
               {meta.map((item, i) => (
                 <span key={String(item)}>
                   {item}
@@ -337,7 +316,11 @@ export default function ProjectDetail() {
               ))}
             </p>
           </div>
-          <ProgressRing value={project.progress} />
+        </div>
+
+        <div className="mt-6 grid gap-4 rounded-2xl bg-white/85 p-4 ring-1 ring-[#CFE2D4] sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center">
+          <ProjectTrail status={project.status} />
+          <NextStepNote step={nextStep(project, user)} />
         </div>
 
         {hasActions && (
@@ -392,10 +375,7 @@ export default function ProjectDetail() {
           </div>
         )}
         {isAssignedProfessor && meetingBlockedReason && (
-          <p
-            id="meeting-blocked-reason"
-            className="mt-3 text-xs text-[#6B6868]"
-          >
+          <p id="meeting-blocked-reason" className="mt-3 text-xs text-apoio">
             {meetingBlockedReason}
           </p>
         )}
@@ -417,48 +397,14 @@ export default function ProjectDetail() {
         {...fadeUp(0.1)}
       >
         <div className="space-y-6 lg:col-span-2">
-          {(details.length > 0 || project.keywords?.length > 0) && (
-            <Section title="Detalhes do projeto">
-              <dl className="grid gap-4 sm:grid-cols-2">
-                {details.map(({ label, value }) => (
-                  <div key={label}>
-                    <dt className="text-xs uppercase tracking-wide text-[#8A8888]">
-                      {label}
-                    </dt>
-                    <dd className="mt-0.5 text-[#2B2A2A]">{value}</dd>
-                  </div>
-                ))}
-              </dl>
-              {project.keywords?.length > 0 && (
-                <div className="mt-5">
-                  <p className="mb-2 text-xs uppercase tracking-wide text-[#8A8888]">
-                    Palavras-chave
-                  </p>
-                  <ul className="flex flex-wrap gap-2">
-                    {project.keywords.map((kw) => (
-                      <li
-                        key={kw}
-                        className="rounded-full bg-[#10512D]/10 px-3 py-1 text-xs font-medium text-[#10512D]"
-                      >
-                        {kw}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </Section>
-          )}
-
-          {textSections.map(({ label, value }) => (
-            <Section key={label} title={label}>
-              <p className="whitespace-pre-wrap leading-relaxed text-[#4A4848]">
-                {value}
-              </p>
-            </Section>
-          ))}
-
           {project.evaluations && project.evaluations.length > 0 && (
-            <Section title="Avaliações">
+            <Section
+              title={
+                project.evaluations.length === 1
+                  ? "Parecer do avaliador"
+                  : "Pareceres do avaliador"
+              }
+            >
               <ul className="space-y-3">
                 {project.evaluations.map((ev) => {
                   const style = DECISION_STYLES[ev.decision];
@@ -498,12 +444,64 @@ export default function ProjectDetail() {
               </ul>
             </Section>
           )}
+          {(details.length > 0 || project.keywords?.length > 0) && (
+            <Section title="Detalhes do projeto">
+              <dl className="grid gap-3 sm:grid-cols-2">
+                {details.map(({ label, value }) => (
+                  <div
+                    key={label}
+                    className="rounded-xl bg-[#F1F8F3] px-4 py-3 ring-1 ring-inset ring-[#DDEDE1]"
+                  >
+                    <dt className="text-sm font-medium text-apoio">{label}</dt>
+                    <dd className="mt-0.5 text-tinta">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+              {project.keywords?.length > 0 && (
+                <div className="mt-5">
+                  <p className="mb-2 text-sm font-medium text-apoio">
+                    Palavras-chave
+                  </p>
+                  <ul className="flex flex-wrap gap-2">
+                    {project.keywords.map((kw) => (
+                      <li
+                        key={kw}
+                        className="rounded-full bg-mata-claro px-3 py-1 text-xs font-medium text-mata"
+                      >
+                        {kw}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </Section>
+          )}
+
+          {textSections.length > 0 && (
+            <Section title="Sobre o projeto">
+              <div className="grid gap-3">
+                {textSections.map(({ label, value }) => (
+                  <div
+                    key={label}
+                    className="rounded-xl bg-[#F1F8F3] px-4 py-3.5 ring-1 ring-inset ring-[#DDEDE1]"
+                  >
+                    <h3 className="font-sans text-sm font-semibold text-mata">
+                      {label}
+                    </h3>
+                    <p className="mt-1 max-w-[70ch] whitespace-pre-wrap leading-relaxed text-tinta/85">
+                      {value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
         </div>
 
         <div className="space-y-6">
           <Section title={`Documentos (${project.attachments?.length ?? 0})`}>
             {!project.attachments || project.attachments.length === 0 ? (
-              <p className="text-sm text-[#6B6868]">Nenhum arquivo anexado.</p>
+              <p className="text-sm text-apoio">Nenhum arquivo anexado.</p>
             ) : (
               <ul className="space-y-2">
                 {project.attachments.map((att) => (
@@ -512,14 +510,14 @@ export default function ProjectDetail() {
                     className="flex items-center gap-3 rounded-xl border border-black/5 bg-white/70 p-3"
                   >
                     <FileText
-                      className="h-5 w-5 shrink-0 text-[#10512D]"
+                      className="h-5 w-5 shrink-0 text-mata"
                       aria-hidden
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm text-[#2B2A2A]">
+                      <p className="truncate text-sm text-tinta">
                         {att.original_name}
                       </p>
-                      <p className="text-xs text-[#8A8888]">
+                      <p className="text-xs text-fraco">
                         {(att.size / 1024 / 1024).toFixed(1)} MB
                       </p>
                     </div>
@@ -530,7 +528,7 @@ export default function ProjectDetail() {
                           handleDownload(att.id, att.original_name)
                         }
                         disabled={downloadingAttachment === att.id}
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-[#10512D] transition-colors hover:bg-[#10512D]/10 disabled:opacity-50"
+                        className="flex h-9 w-9 items-center justify-center rounded-full text-mata transition-colors hover:bg-mata/10 disabled:opacity-50"
                         title="Baixar"
                         aria-label={`Baixar ${att.original_name}`}
                       >
@@ -564,7 +562,7 @@ export default function ProjectDetail() {
                   return (
                     <li key={entry.id} className="flex gap-3">
                       <div className="flex flex-col items-center">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#10512D]/10 text-[#10512D]">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-mata/10 text-mata">
                           <Icon className="h-3.5 w-3.5" aria-hidden />
                         </span>
                         {!isLast && (
@@ -572,10 +570,10 @@ export default function ProjectDetail() {
                         )}
                       </div>
                       <div className="pb-4">
-                        <p className="text-sm text-[#2B2A2A]">
+                        <p className="text-sm text-tinta">
                           {entry.description}
                         </p>
-                        <p className="mt-0.5 text-xs text-[#8A8888]">
+                        <p className="mt-0.5 text-xs text-fraco">
                           {entry.user_name && `${entry.user_name} · `}
                           {new Date(entry.created_at).toLocaleDateString(
                             "pt-BR",

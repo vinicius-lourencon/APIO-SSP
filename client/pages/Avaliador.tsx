@@ -24,6 +24,8 @@ import {
 } from "@/components/layout/PageShell";
 import { EmptyState, ErrorState, ListSkeleton } from "@/components/PageStates";
 import { StatusBadge } from "@/components/StatusBadge";
+import { NextStepNote, ProjectTrail } from "@/components/ProjectTrail";
+import { STATUS_THEME, nextStep } from "@/lib/status-theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { getProjects, assignProject, getEvaluationStats } from "@/lib/api";
@@ -48,20 +50,24 @@ function StatTile({
   tone: string;
 }) {
   return (
-    <div className="flex items-center gap-4 p-5">
+    <div
+      className={cn(
+        "relative flex items-center gap-3 overflow-hidden rounded-2xl p-4 shadow-[0_14px_30px_-18px_rgb(20_38_28/0.6)] sm:gap-4 sm:p-5",
+        tone,
+      )}
+    >
       <span
-        className={cn(
-          "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
-          tone,
-        )}
-      >
+        aria-hidden
+        className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/15"
+      />
+      <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30">
         <Icon className="h-5 w-5" aria-hidden />
       </span>
-      <div>
-        <p className="text-3xl font-bold tabular-nums text-[#10231A]">
+      <div className="relative">
+        <p className="font-display text-3xl font-bold leading-none tabular-nums">
           {value}
         </p>
-        <p className="text-sm text-[#6B6868]">{label}</p>
+        <p className="mt-1 text-sm font-medium opacity-90">{label}</p>
       </div>
     </div>
   );
@@ -165,39 +171,45 @@ export default function Avaliador() {
   ];
 
   return (
-    <PageShell>
-      <PageHeading
-        title={`Olá, Prof. ${firstName(user?.name ?? "")}`}
-        subtitle="Veja o que aguarda a sua avaliação."
-      />
-
+    <PageShell
+      hero={
+        <PageHeading
+          title={`Olá, Prof. ${firstName(user?.name ?? "")}`}
+          subtitle={
+            pendentes.length + emAnalise.length > 0
+              ? `${pendentes.length + emAnalise.length} ${pendentes.length + emAnalise.length === 1 ? "projeto aguarda" : "projetos aguardam"} você.`
+              : "Nenhum projeto aguardando você agora."
+          }
+        />
+      }
+    >
       <m.div
-        className={cn("mt-8 grid grid-cols-2 lg:grid-cols-4", surface)}
+        className="grid grid-cols-2 gap-3 lg:grid-cols-4"
         {...fadeUp(0.08)}
       >
         <StatTile
           icon={ClipboardList}
           label="Avaliados"
           value={stats.total}
-          tone="bg-[#10512D]/10 text-[#10512D]"
+          tone="bg-gradient-to-br from-[#0B4D2D] to-[#17864D] text-white"
         />
         <StatTile
           icon={Clock}
           label="Pendentes"
           value={stats.pending}
-          tone="bg-yellow-100 text-yellow-700"
+          tone="bg-gradient-to-br from-[#FFD23F] to-[#F2A900] text-tinta"
         />
         <StatTile
           icon={CheckCircle2}
           label="Aprovados"
           value={stats.approved}
-          tone="bg-green-100 text-green-700"
+          tone="bg-gradient-to-br from-[#2EA866] to-[#1F8F52] text-white"
         />
         <StatTile
           icon={AlertTriangle}
           label="Ajustes"
           value={stats.adjustments}
-          tone="bg-orange-100 text-orange-600"
+          tone="bg-gradient-to-br from-[#FB8A3C] to-[#EA580C] text-white"
         />
       </m.div>
 
@@ -206,7 +218,7 @@ export default function Avaliador() {
         {...fadeUp(0.14)}
       >
         <div
-          className="inline-flex w-fit rounded-full border border-black/10 bg-white/80 p-1"
+          className="inline-flex w-fit rounded-full border border-linha bg-white p-1"
           role="tablist"
         >
           {tabs.map(({ value, label, count }) => {
@@ -218,10 +230,10 @@ export default function Avaliador() {
                 aria-selected={active}
                 onClick={() => setTab(value)}
                 className={cn(
-                  "inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#10512D]/15",
+                  "inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-mata/15",
                   active
-                    ? "bg-[#10512D] text-white"
-                    : "text-[#4A4848] hover:text-[#10512D]",
+                    ? "bg-mata text-white"
+                    : "text-apoio hover:bg-mata-claro hover:text-mata",
                 )}
               >
                 {label}
@@ -229,9 +241,7 @@ export default function Avaliador() {
                   <span
                     className={cn(
                       "rounded-full px-1.5 text-xs tabular-nums",
-                      active
-                        ? "bg-white/20 text-white"
-                        : "bg-yellow-100 text-yellow-800",
+                      active ? "bg-white/20 text-white" : "bg-ipe text-tinta",
                     )}
                   >
                     {count}
@@ -245,7 +255,7 @@ export default function Avaliador() {
         <label className="relative block w-full md:w-72">
           <span className="sr-only">Buscar projeto pelo título</span>
           <Search
-            className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8A8888]"
+            className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-fraco"
             aria-hidden
           />
           <input
@@ -253,7 +263,7 @@ export default function Avaliador() {
             placeholder="Buscar projeto"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-11 w-full rounded-full border border-black/10 bg-white/90 pl-10 pr-4 text-base text-[#333] outline-none transition-shadow placeholder:text-[#8A8888] focus:border-[#10512D]/50 focus:ring-4 focus:ring-[#10512D]/10"
+            className="h-11 w-full rounded-full border border-linha bg-white pl-10 pr-4 text-base text-tinta outline-none transition-shadow placeholder:text-fraco focus:border-mata/50 focus:ring-4 focus:ring-mata/10"
           />
         </label>
       </m.div>
@@ -302,19 +312,30 @@ export default function Avaliador() {
                     ease: EASE,
                     delay: Math.min(index, 6) * 0.06,
                   }}
-                  className={cn("lift p-5 sm:p-6", surface)}
+                  className={cn(
+                    "lift relative overflow-hidden bg-gradient-to-b to-white to-[62%] p-5 pl-6 sm:p-6 sm:pl-7",
+                    surface,
+                    STATUS_THEME[project.status].wash,
+                  )}
                 >
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "absolute inset-y-0 left-0 w-1.5",
+                      STATUS_THEME[project.status].stripe,
+                    )}
+                  />
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0 flex-1">
-                      <h2 className="text-lg font-semibold text-[#10231A] sm:truncate sm:text-xl">
+                      <h2 className="text-lg font-semibold text-tinta sm:truncate sm:text-xl">
                         <Link
                           to={`/projetos/${project.id}`}
-                          className="rounded-sm outline-none transition-colors hover:text-[#10512D] focus-visible:ring-4 focus-visible:ring-[#10512D]/15"
+                          className="rounded-sm outline-none transition-colors hover:text-mata focus-visible:ring-4 focus-visible:ring-mata/15"
                         >
                           {project.title}
                         </Link>
                       </h2>
-                      <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[#6B6868]">
+                      <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-apoio">
                         {project.student_name && (
                           <span className="inline-flex items-center gap-1.5">
                             <User className="h-4 w-4" aria-hidden />
@@ -328,7 +349,7 @@ export default function Avaliador() {
                           </span>
                         ))}
                         {attachments > 0 && (
-                          <span className="inline-flex items-center gap-1.5 text-[#10512D]">
+                          <span className="inline-flex items-center gap-1.5 text-mata">
                             <Paperclip className="h-4 w-4" aria-hidden />
                             {attachments}{" "}
                             {attachments === 1 ? "arquivo" : "arquivos"}
@@ -339,21 +360,26 @@ export default function Avaliador() {
                     <div className="flex items-center gap-2 sm:flex-col sm:items-end sm:gap-1">
                       <StatusBadge status={project.status} />
                       {isMyProject && (
-                        <span className="text-xs font-medium text-[#10512D]">
-                          Meu projeto
+                        <span className="text-xs font-semibold text-mata">
+                          Sob sua avaliação
                         </span>
                       )}
                     </div>
                   </div>
 
+                  <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center">
+                    <ProjectTrail status={project.status} />
+                    <NextStepNote step={nextStep(project, user)} />
+                  </div>
+
                   {project.latest_feedback && (
-                    <p className="mt-4 line-clamp-2 rounded-xl bg-amber-50/80 p-3 text-sm text-[#5A4A20]">
+                    <p className="mt-4 line-clamp-2 rounded-xl bg-[#F1F8F3] p-3 text-sm text-tinta ring-1 ring-inset ring-[#DDEDE1]">
                       <span className="font-medium">Último feedback: </span>
                       {project.latest_feedback}
                     </p>
                   )}
 
-                  <div className="mt-5 flex flex-wrap items-center gap-2">
+                  <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-linha pt-4">
                     {canAssign && (
                       <button
                         onClick={() => handleAssign(project)}
@@ -375,7 +401,7 @@ export default function Avaliador() {
                       to={`/projetos/${project.id}`}
                       className={cn(
                         canAssign || canEvaluate
-                          ? "text-[#5A5858] hover:bg-black/5"
+                          ? "text-apoio hover:bg-black/5"
                           : secondaryButton,
                         "inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition-colors",
                       )}

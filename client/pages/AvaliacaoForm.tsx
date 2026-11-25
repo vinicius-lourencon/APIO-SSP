@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getProject, createEvaluation } from "@/lib/api";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { STATUS_THEME } from "@/lib/status-theme";
 import { fadeUp } from "@/lib/motion";
 import type { Project, EvaluationDecision } from "@shared/api";
 
@@ -27,7 +28,7 @@ const DECISION_OPTIONS: {
   {
     value: "aprovado",
     label: "Aprovado",
-    color: "border-green-500 bg-green-50 text-green-700",
+    color: "border-folha bg-folha-claro text-mata",
   },
   {
     value: "ajustes_solicitados",
@@ -146,29 +147,34 @@ export default function AvaliacaoForm() {
     decision === "reprovado" || decision === "ajustes_solicitados";
 
   return (
-    <PageShell width="max-w-3xl">
-      <BackLink to={`/projetos/${projectId}`}>Ver projeto</BackLink>
-
-      <m.div {...fadeUp()}>
-        <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#10512D]">
-          Avaliando
-        </p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight text-[#10231A] sm:text-4xl">
-          {project.title}
-        </h1>
-        <p className="mt-2 text-sm text-[#6B6868]">
-          {[
-            project.student_name && `Aluno: ${project.student_name}`,
-            project.proposal_type,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-        </p>
-      </m.div>
-
+    <PageShell
+      width="max-w-3xl"
+      hero={
+        <>
+          <BackLink to={`/projetos/${projectId}`}>Ver projeto</BackLink>
+          <m.div className="mt-6" {...fadeUp()}>
+            <p className="text-sm font-medium text-ipe">Sua avaliação</p>
+            <h1 className="mt-1 text-[2rem] font-bold leading-[1.1] tracking-tight text-white sm:text-[2.5rem]">
+              {project.title}
+            </h1>
+            <p className="mt-2 text-sm text-white/80">
+              {[
+                project.student_name && `Aluno: ${project.student_name}`,
+                project.proposal_type,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          </m.div>
+        </>
+      }
+    >
       <m.form
         onSubmit={handleSubmit}
-        className={cn("mt-8 space-y-6 rounded-3xl p-6 sm:p-8", surface)}
+        className={cn(
+          "relative space-y-6 overflow-hidden rounded-3xl bg-gradient-to-b from-[#E3F2E7] to-[#F6FBF7] p-6 pt-8 sm:p-8 sm:pt-10 before:absolute before:inset-x-0 before:top-0 before:h-1.5 before:bg-gradient-to-r before:from-mata before:via-folha before:to-ipe",
+          surface,
+        )}
         {...fadeUp(0.1)}
       >
         {formError && (
@@ -208,8 +214,8 @@ export default function AvaliacaoForm() {
         </FormField>
 
         <fieldset>
-          <legend className="mb-3 text-sm font-medium text-[#3D3B3B]">
-            Decisão <span className="text-[#10512D]">*</span>
+          <legend className="mb-3 text-sm font-medium text-apoio">
+            Decisão <span className="text-mata">*</span>
           </legend>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {DECISION_OPTIONS.map(({ value, label, color }) => {
@@ -221,13 +227,23 @@ export default function AvaliacaoForm() {
                   aria-pressed={active}
                   onClick={() => setDecision(value)}
                   className={cn(
-                    "inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#10512D]/15",
+                    "inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-mata/15",
                     active
                       ? color
-                      : "border-black/10 bg-white/80 text-[#5A5858] hover:border-black/25",
+                      : "border-linha bg-white text-tinta hover:border-mata/30",
                   )}
                 >
-                  {active && <Check className="h-4 w-4" aria-hidden />}
+                  {active ? (
+                    <Check className="h-4 w-4" aria-hidden />
+                  ) : (
+                    <span
+                      className={cn(
+                        "h-2.5 w-2.5 rounded-full",
+                        STATUS_THEME[value].dot,
+                      )}
+                      aria-hidden
+                    />
+                  )}
                   {label}
                 </button>
               );
@@ -258,7 +274,7 @@ export default function AvaliacaoForm() {
         )}
 
         {decision && (
-          <p className="flex gap-3 rounded-xl bg-amber-50/80 p-3 text-sm text-[#5A4A20]">
+          <p className="flex gap-3 rounded-xl bg-amber-50/80 p-3 text-sm text-tinta">
             <AlertTriangle
               className="mt-0.5 h-4 w-4 shrink-0 text-amber-600"
               aria-hidden

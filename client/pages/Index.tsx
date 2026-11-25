@@ -165,18 +165,25 @@ export default function NovoProjeto() {
   }
 
   return (
-    <PageShell width="max-w-3xl">
-      <PageHeading
-        title={editId ? "Editar projeto" : "Novo projeto"}
-        subtitle="Comece pelo básico. Você completa o resto no próximo passo."
-      />
-
-      <m.div className="mt-6" {...fadeUp(0.06)}>
-        <StepIndicator current={1} />
-      </m.div>
-
+    <PageShell
+      width="max-w-3xl"
+      hero={
+        <>
+          <PageHeading
+            title={editId ? "Editar projeto" : "Novo projeto"}
+            subtitle="Comece pelo básico. Você completa o resto no próximo passo."
+          />
+          <m.div className="mt-6" {...fadeUp(0.06)}>
+            <StepIndicator current={1} />
+          </m.div>
+        </>
+      }
+    >
       <m.div
-        className={cn("mt-6 rounded-3xl p-6 sm:p-8", surface)}
+        className={cn(
+          "relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#E3F2E7] to-[#F6FBF7] p-6 pt-8 sm:p-8 sm:pt-10 before:absolute before:inset-x-0 before:top-0 before:h-1.5 before:bg-gradient-to-r before:from-mata before:via-folha before:to-ipe",
+          surface,
+        )}
         {...fadeUp(0.12)}
       >
         {error && (
@@ -242,8 +249,8 @@ export default function NovoProjeto() {
         </div>
 
         <div className="mt-10">
-          <h2 className="text-lg font-semibold text-[#10231A]">Documentos</h2>
-          <p className="mt-1 text-sm text-[#6B6868]">
+          <h2 className="text-lg font-semibold text-tinta">Documentos</h2>
+          <p className="mt-1 text-sm text-apoio">
             Até 2 arquivos (PDF, DOC ou DOCX, máx. 25MB cada).
           </p>
 
@@ -263,16 +270,16 @@ export default function NovoProjeto() {
               {files.map((f, i) => (
                 <li
                   key={`${f.name}-${i}`}
-                  className="flex items-center gap-3 rounded-xl bg-[#10512D]/5 p-3"
+                  className="flex items-center gap-3 rounded-xl bg-mata/5 p-3"
                 >
                   <FileText
-                    className="h-5 w-5 shrink-0 text-[#10512D]"
+                    className="h-5 w-5 shrink-0 text-mata"
                     aria-hidden
                   />
-                  <span className="min-w-0 flex-1 truncate text-sm text-[#2B2A2A]">
+                  <span className="min-w-0 flex-1 truncate text-sm text-tinta">
                     {f.name}
                   </span>
-                  <span className="text-xs text-[#8A8888]">
+                  <span className="text-xs text-fraco">
                     {(f.size / 1024 / 1024).toFixed(1)} MB
                   </span>
                   <button
@@ -306,10 +313,10 @@ export default function NovoProjeto() {
               onDragLeave={() => setDrag(false)}
               onDrop={handleDrop}
               className={cn(
-                "mt-4 flex cursor-pointer select-none flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-10 text-center outline-none transition-colors focus-visible:ring-4 focus-visible:ring-[#10512D]/15",
+                "mt-4 flex cursor-pointer select-none flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-10 text-center outline-none transition-colors focus-visible:ring-4 focus-visible:ring-mata/15",
                 drag
-                  ? "border-[#10512D] bg-[#10512D]/5"
-                  : "border-black/15 bg-white/60 hover:bg-[#10512D]/[0.03]",
+                  ? "border-folha bg-folha-claro"
+                  : "border-folha/40 bg-gradient-to-b from-mata-claro/70 to-white hover:border-folha hover:from-mata-claro",
               )}
             >
               <input
@@ -323,13 +330,13 @@ export default function NovoProjeto() {
                   e.target.value = "";
                 }}
               />
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#10512D]/10 text-[#10512D]">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2EA866] to-mata text-white shadow-[0_10px_20px_-10px_rgb(14_90_53/0.8)]">
                 <UploadCloud className="h-6 w-6" aria-hidden />
               </span>
-              <p className="text-base text-[#3D3B3B]">
+              <p className="text-base text-apoio">
                 Clique para selecionar ou arraste os arquivos aqui
               </p>
-              <p className="text-sm text-[#8A8888]">
+              <p className="text-sm text-fraco">
                 Ainda cabem {2 - files.length}{" "}
                 {2 - files.length === 1 ? "arquivo" : "arquivos"}
               </p>

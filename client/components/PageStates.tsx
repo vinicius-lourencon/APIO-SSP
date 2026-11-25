@@ -72,12 +72,12 @@ export function EmptyState({
         "rounded-3xl",
       )}
     >
-      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#10512D]/10 text-[#10512D]">
+      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-mata/10 text-mata">
         <Icon className="h-7 w-7" aria-hidden />
       </span>
       <div>
-        <p className="text-xl font-semibold text-[#10231A]">{title}</p>
-        {description && <p className="mt-1 text-[#5A5858]">{description}</p>}
+        <p className="text-xl font-semibold text-tinta">{title}</p>
+        {description && <p className="mt-1 text-apoio">{description}</p>}
       </div>
       {action}
     </div>

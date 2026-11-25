@@ -64,18 +64,18 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         open={open}
         onOpenChange={(isOpen) => !isOpen && settle(false)}
       >
-        <AlertDialogContent className="border-black/5 bg-white font-ubuntu sm:max-w-md">
+        <AlertDialogContent className="border-black/5 bg-white font-sans sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle
               className={cn(
                 "text-xl font-semibold",
-                danger ? "text-red-700" : "text-[#10231A]",
+                danger ? "text-red-700" : "text-tinta",
               )}
             >
               {options.title}
             </AlertDialogTitle>
             {options.description && (
-              <AlertDialogDescription className="text-sm leading-relaxed text-[#5A5858]">
+              <AlertDialogDescription className="text-sm leading-relaxed text-apoio">
                 {options.description}
               </AlertDialogDescription>
             )}
@@ -83,7 +83,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           <AlertDialogFooter className="mt-2 gap-2 sm:gap-2">
             <AlertDialogCancel
               onClick={() => settle(false)}
-              className={cn(secondaryButton, "mt-0 text-[#333]")}
+              className={cn(secondaryButton, "mt-0 text-tinta")}
             >
               {options.cancelLabel ?? "Cancelar"}
             </AlertDialogCancel>

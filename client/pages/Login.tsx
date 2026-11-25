@@ -1,12 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { LazyMotion, MotionConfig, domAnimation, m } from "motion/react";
-import {
-  ClipboardCheck,
-  MessageSquareText,
-  Send,
-  ShieldCheck,
-} from "lucide-react";
+import { GraduationCap, Presentation, type LucideIcon } from "lucide-react";
 import { fieldClass, primaryButton } from "@/components/layout/PageShell";
 import { FormField } from "@/components/FormField";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,28 +21,60 @@ const DEMO_EMAILS: Record<UserRole, string> = {
   professor: "ana.costa@ifms.edu.br",
 };
 
-const HIGHLIGHTS = [
+/** Como um projeto anda no SISAPA (mesma trilha mostrada dentro do sistema) */
+const JOURNEY = [
+  { title: "Rascunho", desc: "Você escreve a proposta e anexa os documentos." },
+  { title: "Enviado", desc: "Os professores recebem o projeto." },
+  { title: "Em análise", desc: "Um professor assume e avalia." },
   {
-    icon: Send,
-    title: "Submissão",
-    desc: "Envie projetos acadêmicos com facilidade",
-  },
-  {
-    icon: ClipboardCheck,
-    title: "Avaliação",
-    desc: "Acompanhe o status em tempo real",
-  },
-  {
-    icon: MessageSquareText,
-    title: "Transparência",
-    desc: "Feedback detalhado dos professores",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Segurança",
-    desc: "Autenticação integrada e protegida",
+    title: "Resultado",
+    desc: "Você recebe o parecer: aprovado ou com ajustes.",
   },
 ] as const;
+
+function RoleCard({
+  icon: Icon,
+  label,
+  hint,
+  active,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  hint: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={active}
+      onClick={onClick}
+      className={cn(
+        "flex flex-1 items-center gap-3 rounded-2xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-mata/20",
+        active
+          ? "border-mata bg-mata-claro"
+          : "border-linha bg-white hover:border-mata/30",
+      )}
+    >
+      <span
+        className={cn(
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+          active ? "bg-mata text-white" : "bg-fundo text-apoio",
+        )}
+      >
+        <Icon className="h-5 w-5" aria-hidden />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold text-tinta">{label}</span>
+        <span className="hidden truncate text-xs text-apoio min-[420px]:block">
+          {hint}
+        </span>
+      </span>
+    </button>
+  );
+}
 
 type Tab = "entrar" | "cadastrar";
 
@@ -64,7 +91,7 @@ function Segmented<T extends string>({
 }) {
   return (
     <div
-      className="flex rounded-full border border-black/10 bg-white/80 p-1"
+      className="flex rounded-full border border-linha bg-white p-1"
       role="tablist"
       aria-label={label}
     >
@@ -78,10 +105,8 @@ function Segmented<T extends string>({
             aria-selected={active}
             onClick={() => onChange(option.value)}
             className={cn(
-              "h-9 flex-1 rounded-full text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#10512D]/15",
-              active
-                ? "bg-[#10512D] text-white"
-                : "text-[#4A4848] hover:text-[#10512D]",
+              "h-9 flex-1 rounded-full text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-mata/15",
+              active ? "bg-mata text-white" : "text-apoio hover:text-mata",
             )}
           >
             {option.label}
@@ -179,20 +204,19 @@ export default function Login() {
   return (
     <LazyMotion features={domAnimation} strict>
       <MotionConfig reducedMotion="user">
-        <div className="flex min-h-screen font-ubuntu">
-          <aside className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-[#0C3F23] p-12 text-white lg:flex">
-            <div className="pointer-events-none absolute inset-0" aria-hidden>
-              <div className="absolute -left-[20%] -top-[20%] h-[60vmax] w-[60vmax] animate-blob-drift motion-reduce:animate-none bg-[radial-gradient(closest-side,rgb(120_190_90/0.35),transparent)]" />
-              <div className="absolute -bottom-[30%] -right-[20%] h-[55vmax] w-[55vmax] animate-blob-drift motion-reduce:animate-none bg-[radial-gradient(closest-side,rgb(255_255_255/0.12),transparent)] [animation-delay:-14s]" />
-            </div>
-
+        <div className="flex min-h-screen font-sans">
+          <aside className="faixa relative hidden w-1/2 flex-col justify-between overflow-hidden p-12 text-white lg:flex">
             <m.div className="relative flex items-center gap-3" {...fadeUp()}>
-              <img
-                src={LOGO_URL}
-                alt=""
-                className="h-14 w-14 object-contain brightness-0 invert"
-              />
-              <span className="text-2xl font-bold">SISAPA</span>
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white p-1.5 shadow-sm">
+                <img
+                  src={LOGO_URL}
+                  alt=""
+                  className="h-full w-full object-contain"
+                />
+              </span>
+              <span className="font-display text-2xl font-bold tracking-tight">
+                SISAPA
+              </span>
             </m.div>
 
             <m.div className="relative" {...fadeUp(0.1)}>
@@ -200,33 +224,55 @@ export default function Login() {
                 Sistema Integrado de Submissão e Avaliação de Projetos
                 Acadêmicos
               </h1>
-              <p className="mt-4 text-lg text-green-100/80">
+              <p className="mt-4 text-lg text-white/75">
                 Instituto Federal de Mato Grosso do Sul — IFMS
               </p>
             </m.div>
 
-            <ul className="relative grid grid-cols-2 gap-3 text-sm">
-              {HIGHLIGHTS.map(({ icon: Icon, title, desc }, i) => (
-                <m.li
-                  key={title}
-                  className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-md"
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    duration: 0.6,
-                    ease: EASE,
-                    delay: 0.2 + i * 0.08,
-                  }}
-                >
-                  <Icon className="h-5 w-5 text-green-200" aria-hidden />
-                  <p className="mt-3 font-semibold">{title}</p>
-                  <p className="mt-1 text-green-100/75">{desc}</p>
-                </m.li>
-              ))}
-            </ul>
+            <div className="relative">
+              <p className="mb-4 text-sm font-medium text-ipe">
+                Como seu projeto anda por aqui
+              </p>
+              <ol className="relative space-y-1 text-sm">
+                {JOURNEY.map(({ title, desc }, i) => (
+                  <m.li
+                    key={title}
+                    className="relative flex gap-4 pb-4 last:pb-0"
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{
+                      duration: 0.6,
+                      ease: EASE,
+                      delay: 0.25 + i * 0.12,
+                    }}
+                  >
+                    {i < JOURNEY.length - 1 && (
+                      <span
+                        aria-hidden
+                        className="absolute left-[15px] top-8 h-[calc(100%-1.5rem)] w-px bg-white/25"
+                      />
+                    )}
+                    <span
+                      className={cn(
+                        "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-display text-sm font-bold",
+                        i === JOURNEY.length - 1
+                          ? "bg-ipe text-tinta"
+                          : "bg-white/15 text-white ring-1 ring-white/25",
+                      )}
+                    >
+                      {i + 1}
+                    </span>
+                    <span className="pt-1">
+                      <span className="block font-semibold">{title}</span>
+                      <span className="block text-white/70">{desc}</span>
+                    </span>
+                  </m.li>
+                ))}
+              </ol>
+            </div>
           </aside>
 
-          <main className="flex flex-1 items-center justify-center bg-[#F6F8F6] p-6 sm:p-12">
+          <main className="fundo-vivo flex flex-1 items-center justify-center p-6 sm:p-12">
             <m.div className="w-full max-w-md" {...fadeUp(0.05)}>
               <div className="mb-8 flex items-center gap-3 lg:hidden">
                 <img
@@ -234,15 +280,15 @@ export default function Login() {
                   alt=""
                   className="h-10 w-10 object-contain"
                 />
-                <span className="text-2xl font-bold text-[#10512D]">
+                <span className="font-display text-2xl font-bold tracking-tight text-mata">
                   SISAPA
                 </span>
               </div>
 
-              <h2 className="text-2xl font-bold tracking-tight text-[#10231A] sm:text-3xl">
+              <h2 className="text-2xl font-bold tracking-tight text-tinta sm:text-3xl">
                 {tab === "entrar" ? "Bem-vindo de volta" : "Criar conta"}
               </h2>
-              <p className="mb-6 mt-1 text-sm text-[#5A5858]">
+              <p className="mb-6 mt-1 text-sm text-apoio">
                 {tab === "entrar"
                   ? "Entre com suas credenciais para acessar o sistema."
                   : "Preencha os dados para criar sua conta no SISAPA."}
@@ -262,15 +308,24 @@ export default function Login() {
                   ]}
                 />
               </div>
-              <div className="mb-6">
-                <Segmented<UserRole>
-                  label="Perfil"
-                  value={role}
-                  onChange={setRole}
-                  options={[
-                    { value: "aluno", label: "Aluno" },
-                    { value: "professor", label: "Professor" },
-                  ]}
+              <div
+                className="mb-6 mt-5 flex gap-3"
+                role="radiogroup"
+                aria-label="Perfil"
+              >
+                <RoleCard
+                  icon={GraduationCap}
+                  label="Aluno"
+                  hint="@estudante.ifms.edu.br"
+                  active={role === "aluno"}
+                  onClick={() => setRole("aluno")}
+                />
+                <RoleCard
+                  icon={Presentation}
+                  label="Professor"
+                  hint="@ifms.edu.br"
+                  active={role === "professor"}
+                  onClick={() => setRole("professor")}
                 />
               </div>
 
@@ -314,11 +369,11 @@ export default function Login() {
                   >
                     {loading ? "Entrando..." : "Entrar"}
                   </button>
-                  <p className="text-center text-xs text-[#8A8888]">
+                  <p className="text-center text-xs text-fraco">
                     Demo:{" "}
                     <button
                       type="button"
-                      className="font-medium text-[#10512D] underline-offset-4 hover:underline"
+                      className="font-medium text-mata underline-offset-4 hover:underline"
                       onClick={() => {
                         setLoginEmail(DEMO_EMAILS[role]);
                         setLoginPassword("senha123");
@@ -447,7 +502,7 @@ export default function Login() {
                 </form>
               )}
 
-              <p className="mt-6 text-center text-xs text-[#8A8888]">
+              <p className="mt-6 text-center text-xs text-fraco">
                 Ao acessar, você concorda com os termos de uso do IFMS.
               </p>
             </m.div>

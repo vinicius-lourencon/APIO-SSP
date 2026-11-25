@@ -18,21 +18,16 @@ export function FormField({
   const id = useId();
   return (
     <div>
-      <label
-        htmlFor={id}
-        className="mb-2 block text-sm font-medium text-[#3D3B3B]"
-      >
+      <label htmlFor={id} className="mb-2 block text-sm font-medium text-apoio">
         {label}
-        {required && <span className="text-[#10512D]"> *</span>}
+        {required && <span className="text-mata"> *</span>}
         {hint && (
-          <span className="ml-2 text-xs font-normal text-[#8A8888]">
-            {hint}
-          </span>
+          <span className="ml-2 text-xs font-normal text-fraco">{hint}</span>
         )}
       </label>
       {cloneElement(children, { id })}
       {counter && (
-        <p className="mt-1 text-right text-xs tabular-nums text-[#8A8888]">
+        <p className="mt-1 text-right text-xs tabular-nums text-fraco">
           {counter}
         </p>
       )}
