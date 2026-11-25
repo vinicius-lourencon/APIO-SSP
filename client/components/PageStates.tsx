@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import type { LucideIcon } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Lock, type LucideIcon } from "lucide-react";
 import { primaryButton, surface } from "@/components/layout/PageShell";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +51,22 @@ export function ErrorState({
         </button>
       )}
     </div>
+  );
+}
+
+/** Shown on the edit screens when the project is no longer a draft (already submitted, under review or decided) */
+export function ProjectLockedState({ projectId }: { projectId: number }) {
+  return (
+    <EmptyState
+      icon={Lock}
+      title="Este projeto não pode ser editado agora"
+      description="Ele já foi enviado para avaliação. Você poderá editar de novo se o professor pedir ajustes."
+      action={
+        <Link to={`/projetos/${projectId}`} className={primaryButton}>
+          Ver projeto
+        </Link>
+      }
+    />
   );
 }
 

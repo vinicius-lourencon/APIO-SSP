@@ -37,7 +37,11 @@ import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { fadeUp } from "@/lib/motion";
 import type { Attachment, MeetingRequestResponse, Project } from "@shared/api";
-import { isValidEmail, professorLabel } from "@shared/api";
+import {
+  isProjectEditable,
+  isValidEmail,
+  professorLabel,
+} from "@shared/api";
 
 const HISTORY_ICONS: Record<string, LucideIcon> = {
   criacao: FileText,
@@ -252,9 +256,7 @@ export default function ProjectDetail() {
     );
   }
 
-  const canEdit =
-    isStudent &&
-    (project.status === "rascunho" || project.status === "ajustes_solicitados");
+  const canEdit = isStudent && isProjectEditable(project.status);
   const canSubmit = canEdit;
   const isAssignedProfessor = isProfessor && project.professor_id === user?.id;
   const canEvaluate = isAssignedProfessor && project.status === "em_analise";

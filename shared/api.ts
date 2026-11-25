@@ -10,7 +10,12 @@ export type ProjectStatus =
   | "aprovado"
   | "reprovado";
 
-export type EvaluationDecision = "aprovado" | "reprovado" | "ajustes_solicitados";
+/** The student can only edit (and submit) a project while it is a draft or after adjustments were requested */
+export function isProjectEditable(status: ProjectStatus): boolean {
+  return status === "rascunho" || status === "ajustes_solicitados";
+}
+
+export type EvaluationDecision ="aprovado" | "reprovado" | "ajustes_solicitados";
 
 export type NotificationType = "info" | "success" | "warning" | "error";
 

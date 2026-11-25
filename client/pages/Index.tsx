@@ -11,7 +11,7 @@ import {
   surface,
 } from "@/components/layout/PageShell";
 import { FormField } from "@/components/FormField";
-import { ListSkeleton } from "@/components/PageStates";
+import { ListSkeleton, ProjectLockedState } from "@/components/PageStates";
 import { StepIndicator } from "@/components/StepIndicator";
 import {
   createProject,
@@ -22,7 +22,7 @@ import {
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { fadeUp } from "@/lib/motion";
-import { PROPOSAL_TYPES } from "@shared/api";
+import { PROPOSAL_TYPES, isProjectEditable } from "@shared/api";
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 const ALLOWED_TYPES = [
@@ -65,6 +65,8 @@ export default function NovoProjeto() {
   const [loading, setLoading] = useState(false);
   const [loadingProject, setLoadingProject] = useState(!!editId);
   const [error, setError] = useState("");
+  // Already submitted/decided: the API would reject the save, so don't show the form
+  const [locked, setLocked] = useState(false);
 
   // Load existing project for editing
   useEffect(() => {
@@ -72,6 +74,7 @@ export default function NovoProjeto() {
     setLoadingProject(true);
     getProject(editId)
       .then((project) => {
+        setLocked(!isProjectEditable(project.status));
         setTitle(project.title || "");
         setProposalType(project.proposal_type || "");
         setTargetAudience(project.public_target || "");
@@ -160,6 +163,14 @@ export default function NovoProjeto() {
     return (
       <PageShell width="max-w-3xl">
         <ListSkeleton count={2} />
+      </PageShell>
+    );
+  }
+
+  if (locked && editId) {
+    return (
+      <PageShell width="max-w-3xl">
+        <ProjectLockedState projectId={editId} />
       </PageShell>
     );
   }

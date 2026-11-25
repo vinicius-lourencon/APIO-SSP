@@ -32,7 +32,12 @@ import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { EASE } from "@/lib/motion";
 import type { Project, ProjectStatus } from "@shared/api";
-import { STATUS_LABELS, firstName, professorLabel } from "@shared/api";
+import {
+  STATUS_LABELS,
+  firstName,
+  isProjectEditable,
+  professorLabel,
+} from "@shared/api";
 
 const STATUS_ORDER: ProjectStatus[] = [
   "rascunho",
@@ -321,9 +326,7 @@ export default function MyProjects() {
         ) : (
           <ul className="space-y-4">
             {visible.map((project, index) => {
-              const canEdit =
-                project.status === "rascunho" ||
-                project.status === "ajustes_solicitados";
+              const canEdit = isProjectEditable(project.status);
               const canSubmit = canEdit;
               const canDelete = project.status === "rascunho";
               const isActing = actionLoading === project.id;

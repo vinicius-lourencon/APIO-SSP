@@ -10,14 +10,18 @@ import {
   secondaryButton,
   surface,
 } from "@/components/layout/PageShell";
-import { EmptyState, ListSkeleton } from "@/components/PageStates";
+import {
+  EmptyState,
+  ListSkeleton,
+  ProjectLockedState,
+} from "@/components/PageStates";
 import { FormField } from "@/components/FormField";
 import { StepIndicator } from "@/components/StepIndicator";
 import { getProject, updateProject, submitProject } from "@/lib/api";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { fadeUp } from "@/lib/motion";
-import { KNOWLEDGE_AREAS } from "@shared/api";
+import { KNOWLEDGE_AREAS, isProjectEditable } from "@shared/api";
 
 const textarea = cn(fieldClass, "min-h-32 resize-y");
 
@@ -40,12 +44,15 @@ export default function GeneralInfo() {
   const [loading, setLoading] = useState(false);
   const [loadingProject, setLoadingProject] = useState(!!projectId);
   const [error, setError] = useState("");
+  // Already submitted/decided: the API would reject the save, so don't show the form
+  const [locked, setLocked] = useState(false);
 
   useEffect(() => {
     if (!projectId) return;
     setLoadingProject(true);
     getProject(projectId)
       .then((project) => {
+        setLocked(!isProjectEditable(project.status));
         setObjectives(project.objectives || "");
         setDescription(project.description || "");
         setImpact(project.impact || "");
@@ -138,6 +145,14 @@ export default function GeneralInfo() {
             </Link>
           }
         />
+      </PageShell>
+    );
+  }
+
+  if (locked) {
+    return (
+      <PageShell width="max-w-3xl">
+        <ProjectLockedState projectId={projectId} />
       </PageShell>
     );
   }
